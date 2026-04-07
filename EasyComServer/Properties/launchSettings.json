@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "EasyComServer": {
+      "commandName": "Project",
+      "commandLineArgs": "--console"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+## Visual Studio / .NET
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+## Logs generated at runtime
+*.log
+
+## NuGet
+packages/
+*.nupkg
+project.lock.json
+
+## Publish output
+publish/
+
+## Die DLL nicht in git – separat bereitstellen
+EASY_COM.dll
