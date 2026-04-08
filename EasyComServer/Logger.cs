@@ -5,7 +5,7 @@ namespace EasyComServer
 {
     public static class Logger
     {
-        // Fallback-Pfad: ProgramData ist fuer LocalSystem immer schreibbar
+        // Fallback path: ProgramData is always writable for LocalSystem
         private static string _logFile = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             "EasyComServer", "easycom.log");
@@ -17,12 +17,12 @@ namespace EasyComServer
         {
             _console = console;
 
-            // Relativen Pfad -> absolut relativ zur EXE
+            // Convert relative path to absolute, relative to the executable directory
             if (!Path.IsPathRooted(logFile))
                 logFile = Path.Combine(
                     AppDomain.CurrentDomain.BaseDirectory, logFile);
 
-            // Verzeichnis anlegen falls noetig
+            // Create the log directory if it does not exist
             try
             {
                 string? dir = Path.GetDirectoryName(logFile);
@@ -32,10 +32,10 @@ namespace EasyComServer
             }
             catch
             {
-                // Fallback auf ProgramData bleibt aktiv
+                // ProgramData fallback remains active
             }
 
-            // ProgramData-Verzeichnis ebenfalls sicherstellen
+            // Also ensure the ProgramData directory exists
             try
             {
                 string fallbackDir = Path.GetDirectoryName(_logFile)!;
@@ -44,7 +44,7 @@ namespace EasyComServer
             }
             catch { }
 
-            Log($"Logger initialisiert. Logdatei: {_logFile}");
+            Log($"Logger initialized. Log file: {_logFile}");
         }
 
         public static void SetConsole(bool enabled) => _console = enabled;
@@ -54,14 +54,14 @@ namespace EasyComServer
             string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {message}";
             lock (_lock)
             {
-                // Immer in ProgramData schreiben (sicher fuer Service)
+                // Always write to the configured log file (safe for Windows Service)
                 try
                 {
                     File.AppendAllText(_logFile, line + Environment.NewLine);
                 }
                 catch
                 {
-                    // Letzter Ausweg: ProgramData direkt
+                    // Last resort: write directly to ProgramData
                     try
                     {
                         string fallback = Path.Combine(

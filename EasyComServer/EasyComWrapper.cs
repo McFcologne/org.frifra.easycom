@@ -13,6 +13,9 @@ namespace EasyComServer
     /// regardless of the declared type (byte, word, integer).
     /// Therefore ALL P/Invoke parameters must be declared as 'int', not byte/ushort.
     /// Using byte/ushort causes stack misalignment and 0xC0000005 Access Violations.
+    ///
+    /// Write_Object_Value and MC_Write_Object_Value expect the value parameter
+    /// as a pointer (ref int) — confirmed by disassembly (TEST EDI,EDI null check).
     /// </summary>
     public class EasyComWrapper : IDisposable
     {
@@ -59,6 +62,7 @@ namespace EasyComServer
         [DllImport("EASY_COM.dll", CallingConvention = CallingConvention.StdCall, EntryPoint = "Read_Object_Value")]
         private static extern int Read_Object_Value(int netId, int obj, int index, ref int value);
 
+        // Last parameter is a pointer (ref) — confirmed by disassembly (TEST EDI,EDI)
         [DllImport("EASY_COM.dll", CallingConvention = CallingConvention.StdCall, EntryPoint = "Write_Object_Value")]
         private static extern int Write_Object_Value(int netId, int obj, int index, int length, ref int value);
 
@@ -134,6 +138,7 @@ namespace EasyComServer
         private static extern int MC_Read_Object_Value(int handle, int netId, int obj,
             int index, ref int value);
 
+        // Last parameter is a pointer (ref) — confirmed by disassembly (TEST EDI,EDI)
         [DllImport("EASY_COM.dll", CallingConvention = CallingConvention.StdCall, EntryPoint = "MC_Write_Object_Value")]
         private static extern int MC_Write_Object_Value(int handle, int netId, int obj,
             int index, int length, ref int value);
@@ -167,7 +172,7 @@ namespace EasyComServer
         [DllImport("EASY_COM.dll", CallingConvention = CallingConvention.StdCall, EntryPoint = "MC_Lock_Device")]
         private static extern int MC_Lock_Device(int handle, int netId, ref int errorDetail);
 
-        // ── Error strings ─────────────────────────────────────────────────────
+        // ── Error code lookup ─────────────────────────────────────────────────
 
         private static readonly Dictionary<int, string> EasyErrors = new()
         {
@@ -212,6 +217,7 @@ namespace EasyComServer
             _dllPath = dllPath;
         }
 
+        /// <summary>Sets the default COM port used for auto-connect.</summary>
         public void SetDefaultCom(int comPort, int baudRate)
         {
             _defaultComPort = comPort;
@@ -220,9 +226,10 @@ namespace EasyComServer
         }
 
         /// <summary>
-        /// Setzt den COM-Port fuer den naechsten Auto-Connect.
-        /// Wird vom CommandProcessor vor jedem Befehl aufgerufen
-        /// um den instanz-spezifischen Port zu setzen.
+        /// Updates the default COM port for the next auto-connect.
+        /// Called by CommandProcessor before each command to apply
+        /// the instance-specific port. Has no effect if a connection
+        /// is already open.
         /// </summary>
         public void SetInstanceCom(int comPort, int baudRate)
         {
@@ -230,12 +237,17 @@ namespace EasyComServer
             {
                 if (!_singleConnected)
                 {
-                    _defaultComPort  = comPort;
+                    _defaultComPort = comPort;
                     _defaultBaudRate = baudRate;
                 }
             }
         }
 
+        /// <summary>
+        /// Configures the idle timeout. After this many seconds without activity
+        /// the COM port is closed automatically and re-opened on the next command.
+        /// Pass 0 to disable auto-close.
+        /// </summary>
         public void SetComIdleTimeout(int seconds)
         {
             _comIdleSeconds = seconds;
@@ -259,7 +271,7 @@ namespace EasyComServer
                     return null;
                 }
 
-                int comPort  = comPortOverride  > 0 ? comPortOverride  : _defaultComPort;
+                int comPort = comPortOverride > 0 ? comPortOverride : _defaultComPort;
                 int baudRate = baudRateOverride > 0 ? baudRateOverride : _defaultBaudRate;
 
                 if (comPort <= 0)
@@ -273,7 +285,8 @@ namespace EasyComServer
 
                 _singleConnected = true;
                 _singleLastActivity = DateTime.Now;
-                _defaultComPort  = comPort;
+                // Update defaults so KeepAlive and idle timer know which port is open
+                _defaultComPort = comPort;
                 _defaultBaudRate = baudRate;
                 Logger.Log($"Auto-connected to COM{comPort} @ {baudRate} baud.");
                 return null;
@@ -292,7 +305,7 @@ namespace EasyComServer
                     try { Close_ComPort(); } catch { }
                     _singleConnected = false;
                     Logger.Log($"Idle-closed COM{_defaultComPort} " +
-                               $"(idle {_comIdleSeconds}s). Will auto-reconnect.");
+                               $"(idle for {_comIdleSeconds}s). Will auto-reconnect on next command.");
                 }
                 var toClose = new List<int>();
                 foreach (var kv in _connections)
@@ -325,6 +338,10 @@ namespace EasyComServer
 
         public bool IsSingleConnected { get { lock (_lock) return _singleConnected; } }
 
+        /// <summary>
+        /// Refreshes the last-activity timestamp to prevent idle-close
+        /// during a pulse busy-wait. Call continuously in the wait loop.
+        /// </summary>
         public void KeepAlive()
         {
             lock (_lock)
@@ -430,7 +447,7 @@ namespace EasyComServer
             int det = 0;
             int rc = Start_Program(netId, ref det);
             return rc == 0 ? $"OK START_PROGRAM NET_ID={netId}"
-                 : rc == 2  ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
+                 : rc == 2 ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
                  : EasyErrorString(rc);
         }
 
@@ -440,7 +457,7 @@ namespace EasyComServer
             int det = 0;
             int rc = Stop_Program(netId, ref det);
             return rc == 0 ? $"OK STOP_PROGRAM NET_ID={netId}"
-                 : rc == 2  ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
+                 : rc == 2 ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
                  : EasyErrorString(rc);
         }
 
@@ -475,6 +492,11 @@ namespace EasyComServer
             return rc == 0 ? $"OK\r\n{v}" : EasyErrorString(rc);
         }
 
+        /// <summary>
+        /// Direct write without EnsureComConnected — for pulse use only.
+        /// The connection must already be open. Updates LastActivity to
+        /// prevent idle-close during the pulse wait.
+        /// </summary>
         internal string WriteObjectValueDirect(int netId, int obj, int index, int length, int value)
         {
             lock (_lock) { _singleLastActivity = DateTime.Now; }
@@ -533,7 +555,7 @@ namespace EasyComServer
             int det = 0;
             int rc = Unlock_Device(netId, password, ref det);
             return rc == 0 ? "OK UNLOCK_DEVICE"
-                 : rc == 2  ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
+                 : rc == 2 ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
                  : EasyErrorString(rc);
         }
 
@@ -543,7 +565,7 @@ namespace EasyComServer
             int det = 0;
             int rc = Lock_Device(netId, ref det);
             return rc == 0 ? "OK LOCK_DEVICE"
-                 : rc == 2  ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
+                 : rc == 2 ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
                  : EasyErrorString(rc);
         }
 
@@ -553,7 +575,7 @@ namespace EasyComServer
             return $"OK\r\n{Marshal.GetPInvokeErrorMessage(n)} ({n})";
         }
 
-        // ── MC_ API ───────────────────────────────────────────────────────────
+        // ── MC_ multi-connection API ──────────────────────────────────────────
 
         public string McOpenComPort(int comPortNr, int baudRate)
         {
@@ -565,8 +587,10 @@ namespace EasyComServer
                 {
                     _connections[handle] = new ConnectionInfo
                     {
-                        Handle = handle, Type = ConnectionType.Com,
-                        Target = $"COM{comPortNr}@{baudRate}", LastActivity = DateTime.Now
+                        Handle = handle,
+                        Type = ConnectionType.Com,
+                        Target = $"COM{comPortNr}@{baudRate}",
+                        LastActivity = DateTime.Now
                     };
                 }
                 return $"OK MC_OPEN_COMPORT\r\n{handle}";
@@ -613,8 +637,10 @@ namespace EasyComServer
                 {
                     _connections[handle] = new ConnectionInfo
                     {
-                        Handle = handle, Type = ConnectionType.Ethernet,
-                        Target = $"{ip}:{port}", LastActivity = DateTime.Now
+                        Handle = handle,
+                        Type = ConnectionType.Ethernet,
+                        Target = $"{ip}:{port}",
+                        LastActivity = DateTime.Now
                     };
                 }
                 return $"OK MC_OPEN_ETHERNETPORT HANDLE={handle}";
@@ -642,7 +668,7 @@ namespace EasyComServer
             int det = 0;
             int rc = MC_Start_Program(handle, netId, ref det);
             return rc == 0 ? "OK MC_START_PROGRAM"
-                 : rc == 2  ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
+                 : rc == 2 ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
                  : EasyErrorString(rc);
         }
 
@@ -652,7 +678,7 @@ namespace EasyComServer
             int det = 0;
             int rc = MC_Stop_Program(handle, netId, ref det);
             return rc == 0 ? "OK MC_STOP_PROGRAM"
-                 : rc == 2  ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
+                 : rc == 2 ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
                  : EasyErrorString(rc);
         }
 
@@ -689,6 +715,10 @@ namespace EasyComServer
             return rc == 0 ? $"OK\r\n{v}" : EasyErrorString(rc);
         }
 
+        /// <summary>
+        /// Direct MC write without TouchHandle — for pulse use only.
+        /// Updates LastActivity to prevent idle-close during the pulse wait.
+        /// </summary>
         internal string McWriteObjectValueDirect(int handle, int netId, int obj,
             int index, int length, int value)
         {
@@ -752,7 +782,7 @@ namespace EasyComServer
             int det = 0;
             int rc = MC_Unlock_Device(handle, netId, password, ref det);
             return rc == 0 ? "OK MC_UNLOCK_DEVICE"
-                 : rc == 2  ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
+                 : rc == 2 ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
                  : EasyErrorString(rc);
         }
 
@@ -762,7 +792,7 @@ namespace EasyComServer
             int det = 0;
             int rc = MC_Lock_Device(handle, netId, ref det);
             return rc == 0 ? "OK MC_LOCK_DEVICE"
-                 : rc == 2  ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
+                 : rc == 2 ? $"{EasyErrorString(rc)}\r\nDevice error: {det}"
                  : EasyErrorString(rc);
         }
 

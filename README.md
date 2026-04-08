@@ -1,132 +1,132 @@
-# EasyComServer — Visual Studio Projekt
+# EasyComServer — Visual Studio Project
 
-HTTP- und Telnet-Gateway für die **EASY_COM.dll** (Moeller/Eaton EASY-Steuerungen).  
-Läuft als **Windows-Service** unter Windows Server 2025/2022/2019.
+HTTP and Telnet gateway for **EASY_COM.dll** (Moeller/Eaton EASY PLCs).  
+Runs as a **Windows Service** on Windows Server 2025/2022/2019.
 
 ---
 
-## Schnellstart in Visual Studio
+## Quick Start in Visual Studio
 
-### 1. Voraussetzungen
+### 1. Prerequisites
 
 | | |
 |---|---|
-| Visual Studio | 2022 (Community reicht) |
-| Workload | **.NET Desktop Development** oder **ASP.NET and web development** |
+| Visual Studio | 2022 (Community edition is sufficient) |
+| Workload | **.NET Desktop Development** or **ASP.NET and web development** |
 | .NET SDK | 8.0 |
-| Zielplattform | **x86** — EASY_COM.dll ist 32-Bit |
+| Target platform | **x86** — EASY_COM.dll is 32-bit |
 
-### 2. Projekt öffnen
+### 2. Open the project
 
 ```
-Doppelklick auf  EasyComServer.sln
+Double-click  EasyComServer.sln
 ```
 
-### 3. EASY_COM.dll einfügen
+### 3. Add EASY_COM.dll
 
-Die 32-Bit-DLL in den Projektordner kopieren:
+Copy the 32-bit DLL into the project folder:
 
 ```
 EasyComServer\
   EasyComServer\
-    EASY_COM.dll   ← hier
+    EASY_COM.dll   ← here
     EasyComServer.csproj
     ...
 ```
 
-Danach in Visual Studio: **Rechtsklick auf das Projekt → Hinzufügen → Vorhandenes Element → EASY_COM.dll**  
-Eigenschaften der Datei: *In Ausgabeverzeichnis kopieren* → **Wenn neuer**
+Then in Visual Studio: **Right-click the project → Add → Existing Item → EASY_COM.dll**  
+File properties: *Copy to Output Directory* → **Copy if newer**
 
-### 4. Plattform prüfen
+### 4. Check the platform
 
-Menü: **Build → Configuration Manager**  
-Sicherstellen dass **x86** als Plattform gesetzt ist (nicht AnyCPU!).
+Menu: **Build → Configuration Manager**  
+Make sure **x86** is set as the platform (not AnyCPU!).
 
-### 5. Debuggen (Konsolenmodus)
+### 5. Debugging (console mode)
 
-`F5` startet die Anwendung mit dem Profil **„Konsole (Debug)"**,  
-d.h. `EasyComServer.exe --console`. Die Server-Ausgabe erscheint im  
-Konsolenfenster, kein Service-Registrierung nötig.
+`F5` starts the application with the **"Console (Debug)"** profile,  
+i.e. `EasyComServer.exe --console`. Server output appears in the  
+console window — no service registration required.
 
-Das Startprofil kann in `Properties\launchSettings.json` geändert werden.
+The launch profile can be changed in `Properties\launchSettings.json`.
 
-### 6. Konfiguration anpassen
+### 6. Adjust configuration
 
-`easycom.ini` im Projektordner bearbeiten — wird beim Build automatisch  
-ins Ausgabeverzeichnis kopiert.
+Edit `easycom.ini` in the project folder — it is automatically copied  
+to the output directory on each build.
 
 ```ini
 [instance]
-com_port   = 1        ; ← COM-Port des EASY-Geräts
-baud_rate  = 9600     ; ← Baudrate
-http_port  = 8083
+com_port    = 1       ; ← COM port of the EASY device
+baud_rate   = 9600    ; ← baud rate
+http_port   = 8083
 telnet_port = 8023
-basic_auth = false    ; true = Passwortschutz aktivieren
+basic_auth  = false   ; true = enable password protection
 ```
 
 ---
 
 ## Build & Deployment
 
-### Release-Build erstellen
+### Create a release build
 
 ```
-Menü: Build → Publish EasyComServer
+Menu: Build → Publish EasyComServer
 ```
 
-oder auf der Kommandozeile:
+or from the command line:
 
 ```powershell
 dotnet publish -c Release -r win-x86 --self-contained false -o .\publish
 ```
 
-> **Hinweis:** `EASY_COM.dll` muss manuell in den `publish\`-Ordner kopiert werden,
-> falls sie noch nicht im Projektordner lag.
+> **Note:** `EASY_COM.dll` must be copied manually into the `publish\` folder
+> if it was not already in the project folder.
 
-### Als Windows-Service installieren
+### Install as a Windows Service
 
 ```powershell
-# Als Administrator ausführen
+# Run as Administrator
 .\publish\install-service.ps1 -Action install
 ```
 
-Das Skript:
-- Registriert den Dienst mit Autostart
-- Konfiguriert automatischen Neustart bei Absturz
-- Öffnet Firewall-Ports (HTTP + Telnet)
-- Registriert HTTP URL ACLs
+The script:
+- Registers the service with auto-start
+- Configures automatic restart on crash
+- Opens firewall ports (HTTP + Telnet)
+- Registers HTTP URL ACLs
 
-### Service-Verwaltung
+### Service management
 
 ```powershell
-.\install-service.ps1 -Action start    # Starten
-.\install-service.ps1 -Action stop     # Stoppen
-.\install-service.ps1 -Action status   # Status anzeigen
+.\install-service.ps1 -Action start     # Start
+.\install-service.ps1 -Action stop      # Stop
+.\install-service.ps1 -Action status    # Show status
 .\install-service.ps1 -Action uninstall
 ```
 
 ---
 
-## Web-Konsole
+## Web Console
 
-Nach dem Start im Browser aufrufen:
+After starting, open in your browser:
 
 ```
 http://localhost:8083/
 ```
 
-→ Redirect auf `http://localhost:8083/index.html`  
-→ Interaktive Terminal-Konsole mit Befehlsverlauf, Tab-Completion und Quick-Buttons
+→ Redirects to `http://localhost:8083/index.html`  
+→ Interactive terminal console with command history, tab completion and quick buttons
 
 ---
 
 ## HTTP API
 
 ```
-http://SERVER:PORT/easy.cmd?BEFEHL
+http://SERVER:PORT/easy.cmd?COMMAND
 ```
 
-Beispiele:
+Examples:
 ```
 http://localhost:8083/easy.cmd?help
 http://localhost:8083/easy.cmd?show%20server
@@ -134,37 +134,37 @@ http://localhost:8083/easy.cmd?read_clock%200
 http://localhost:8083/easy.cmd?read_object_value%200%201%200%204
 ```
 
-Befehle können abgekürzt werden (`sh ser` = `show server`).
+Commands can be abbreviated (`sh ser` = `show server`).
 
 ---
 
-## Projektstruktur
+## Project Structure
 
 ```
 EasyComServer.sln
 EasyComServer\
-  EasyComServer.csproj      Projektdatei (x86, .NET 8, Windows Service)
-  EasyComServer.cs          ServiceBase + HTTP/Telnet-Listener
-  EasyComWrapper.cs         P/Invoke-Wrapper für EASY_COM.dll + Auto-Connect
-  CommandProcessor.cs       Befehls-Parser, Dispatcher, Abkürzungslogik
-  ServerConfig.cs           INI-Datei lesen/schreiben
-  Logger.cs                 Thread-sicherer Datei- und Konsolen-Logger
-  easycom.ini               Konfiguration (wird ins Build-Verzeichnis kopiert)
-  install-service.ps1       PowerShell-Installationsscript
-  EASY_COM.dll              ← hier einfügen (32-Bit, nicht in git)
+  EasyComServer.csproj      Project file (x86, .NET 8, Windows Service)
+  EasyComServer.cs          ServiceBase + HTTP/Telnet listeners
+  EasyComWrapper.cs         P/Invoke wrapper for EASY_COM.dll + auto-connect
+  CommandProcessor.cs       Command parser, dispatcher, abbreviation logic
+  ServerConfig.cs           INI file reader/writer
+  Logger.cs                 Thread-safe file and console logger
+  easycom.ini               Configuration (copied to build directory automatically)
+  install-service.ps1       PowerShell installation script
+  EASY_COM.dll              ← insert here (32-bit, not in git)
   wwwroot\
-    index.html              Web-Konsole
+    index.html              Web console
   Properties\
-    launchSettings.json     VS-Debugprofile
+    launchSettings.json     VS debug profiles
 ```
 
 ---
 
-## Häufige Fehler
+## Common Errors
 
-| Fehler | Ursache | Lösung |
+| Error | Cause | Solution |
 |---|---|---|
-| `BadImageFormatException` | Projekt als x64/AnyCPU gebaut | Platform auf **x86** setzen |
-| `DllNotFoundException` | EASY_COM.dll fehlt im Ausgabeverzeichnis | DLL in Projektordner kopieren, `CopyToOutputDirectory = PreserveNewest` |
-| `HttpListenerException: Access denied` | Kein HTTP URL ACL | `install-service.ps1` als Admin ausführen, oder `netsh http add urlacl` manuell |
-| `Access is denied` (COM-Port) | Port wird von anderem Prozess gehalten | Anderen Prozess beenden; idle_timeout verkürzen |
+| `BadImageFormatException` | Project built as x64/AnyCPU | Set platform to **x86** |
+| `DllNotFoundException` | EASY_COM.dll missing from output directory | Copy DLL to project folder, set `CopyToOutputDirectory = PreserveNewest` |
+| `HttpListenerException: Access denied` | No HTTP URL ACL registered | Run `install-service.ps1` as Admin, or run `netsh http add urlacl` manually |
+| `Access is denied` (COM port) | Port held by another process | Stop the other process; reduce idle_timeout |

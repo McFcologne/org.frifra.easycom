@@ -15,7 +15,7 @@ Source: "..\bin\Release\net8.0-windows\publish\*"; DestDir: "{app}"; Flags: recu
 
 [Run]
 Filename: "sc"; Parameters: "create EasyComServer binPath=""{app}\EasyComServer.exe"" start=auto obj=""LocalSystem"" DisplayName=""Moeller EASY COM Server"""; Flags: runhidden
-Filename: "sc"; Parameters: "description EasyComServer ""HTTP und Telnet Gateway fuer EASY_COM.dll"""; Flags: runhidden
+Filename: "sc"; Parameters: "description EasyComServer ""HTTP and Telnet gateway for EASY_COM.dll"""; Flags: runhidden
 Filename: "sc"; Parameters: "start EasyComServer"; Flags: runhidden
 
 [UninstallRun]
@@ -24,7 +24,7 @@ Filename: "cmd"; Parameters: "/c timeout /t 3 /nobreak"; Flags: runhidden; RunOn
 Filename: "sc"; Parameters: "delete EasyComServer"; Flags: runhidden; RunOnceId: "DeleteService"
 
 [Icons]
-Name: "{group}\Deinstallieren"; Filename: "{uninstallexe}"
+Name: "{group}\Uninstall"; Filename: "{uninstallexe}"
 
 [Code]
 var
@@ -58,7 +58,7 @@ begin
   TempFile := ExpandConstant('{app}\dotnet8.exe');
 
   ForceDirectories(ExpandConstant('{app}'));
-  WizardForm.StatusLabel.Caption := '.NET 8 Runtime wird heruntergeladen...';
+  WizardForm.StatusLabel.Caption := 'Downloading .NET 8 Runtime...';
 
   Exec(ExpandConstant('{cmd}'),
     '/c certutil -urlcache -split -f "' + Url + '" "' + TempFile + '"',
@@ -75,14 +75,14 @@ begin
 
   if not FileExists(TempFile) then
   begin
-    MsgBox('Download fehlgeschlagen.' + #13#10 +
-           'Bitte .NET 8 Runtime (x86) manuell installieren:' + #13#10 +
+    MsgBox('Download failed.' + #13#10 +
+           'Please install .NET 8 Runtime (x86) manually:' + #13#10 +
            'https://aka.ms/dotnet/8.0/dotnet-runtime-win-x86.exe',
            mbError, MB_OK);
     Exit;
   end;
 
-  WizardForm.StatusLabel.Caption := '.NET 8 Runtime wird installiert...';
+  WizardForm.StatusLabel.Caption := 'Installing .NET 8 Runtime...';
   if Exec(TempFile, '/quiet /norestart', '', SW_HIDE,
           ewWaitUntilTerminated, ResultCode) then
   begin
@@ -90,34 +90,34 @@ begin
     if (ResultCode = 0) or (ResultCode = 1638) then
       Result := True
     else
-      MsgBox('.NET Installation fehlgeschlagen (Code: ' +
+      MsgBox('.NET installation failed (code: ' +
              IntToStr(ResultCode) + ')', mbError, MB_OK);
   end
   else
-    MsgBox('.NET Installer konnte nicht gestartet werden.', mbError, MB_OK);
+    MsgBox('Could not launch the .NET installer.', mbError, MB_OK);
 end;
 
 procedure InitializeWizard;
 begin
   PortPage := CreateInputQueryPage(wpSelectDir,
-    'Port- und Schnittstellenkonfiguration',
-    'Legen Sie die Ports und den COM-Anschluss fest.',
+    'Port and Interface Configuration',
+    'Configure the ports and the COM interface.',
     '');
-  PortPage.Add('HTTP-Port (Web-Konsole):', False);
-  PortPage.Add('Telnet-Port:', False);
-  PortPage.Add('COM-Port (1=COM1, 2=COM2 ...):', False);
-  PortPage.Add('Baudrate:', False);
+  PortPage.Add('HTTP port (web console):', False);
+  PortPage.Add('Telnet port:', False);
+  PortPage.Add('COM port (1=COM1, 2=COM2 ...):', False);
+  PortPage.Add('Baud rate:', False);
   PortPage.Values[0] := '8083';
   PortPage.Values[1] := '8023';
   PortPage.Values[2] := '1';
   PortPage.Values[3] := '9600';
 
   AuthPage := CreateInputQueryPage(PortPage.ID,
-    'Zugangssicherung (optional)',
-    'HTTP Basic Authentication fuer die Web-Konsole.',
-    'Leer lassen um Authentifizierung zu deaktivieren.');
-  AuthPage.Add('Benutzername:', False);
-  AuthPage.Add('Passwort:', True);
+    'Access Protection (optional)',
+    'HTTP Basic Authentication for the web console.',
+    'Leave blank to disable authentication.');
+  AuthPage.Add('Username:', False);
+  AuthPage.Add('Password:', True);
   AuthPage.Values[0] := 'admin';
   AuthPage.Values[1] := '';
 end;
@@ -137,27 +137,27 @@ begin
 
     if (Http < 1) or (Http > 65535) then
     begin
-      MsgBox('Bitte einen gueltigen HTTP-Port eingeben (1-65535).', mbError, MB_OK);
+      MsgBox('Please enter a valid HTTP port (1-65535).', mbError, MB_OK);
       Result := False; Exit;
     end;
     if (Telnet < 1) or (Telnet > 65535) then
     begin
-      MsgBox('Bitte einen gueltigen Telnet-Port eingeben (1-65535).', mbError, MB_OK);
+      MsgBox('Please enter a valid Telnet port (1-65535).', mbError, MB_OK);
       Result := False; Exit;
     end;
     if Http = Telnet then
     begin
-      MsgBox('HTTP-Port und Telnet-Port duerfen nicht identisch sein.', mbError, MB_OK);
+      MsgBox('HTTP port and Telnet port must be different.', mbError, MB_OK);
       Result := False; Exit;
     end;
     if (Com < 1) or (Com > 32) then
     begin
-      MsgBox('Bitte einen gueltigen COM-Port eingeben (1-32).', mbError, MB_OK);
+      MsgBox('Please enter a valid COM port number (1-32).', mbError, MB_OK);
       Result := False; Exit;
     end;
     if (Baud < 300) or (Baud > 115200) then
     begin
-      MsgBox('Bitte eine gueltige Baudrate eingeben (300-115200).', mbError, MB_OK);
+      MsgBox('Please enter a valid baud rate (300-115200).', mbError, MB_OK);
       Result := False; Exit;
     end;
   end;
@@ -166,9 +166,9 @@ begin
   begin
     if (AuthPage.Values[0] <> '') and (AuthPage.Values[1] = '') then
     begin
-      if MsgBox('Kein Passwort angegeben.' + #13#10 +
-                'Ohne Passwort ist die Web-Konsole ungeschuetzt.' + #13#10 +
-                'Trotzdem fortfahren?',
+      if MsgBox('No password specified.' + #13#10 +
+                'Without a password the web console is unprotected.' + #13#10 +
+                'Continue anyway?',
                 mbConfirmation, MB_YESNO) = IDNO then
       begin
         Result := False; Exit;
@@ -180,8 +180,8 @@ begin
   begin
     if not DotNetInstalled then
     begin
-      if MsgBox('.NET 8 Runtime (x86) ist nicht installiert.' + #13#10 +
-                'Soll sie jetzt heruntergeladen und installiert werden? (~26 MB)',
+      if MsgBox('.NET 8 Runtime (x86) is not installed.' + #13#10 +
+                'Download and install it now? (~26 MB)',
                 mbConfirmation, MB_YESNO) = IDYES then
       begin
         if not DownloadAndInstallDotNet then
@@ -191,8 +191,8 @@ begin
       end
       else
       begin
-        MsgBox('EasyComServer benoetigt .NET 8 Runtime (x86).' + #13#10 +
-               'Die Installation wird abgebrochen.', mbError, MB_OK);
+        MsgBox('EasyComServer requires .NET 8 Runtime (x86).' + #13#10 +
+               'Setup will be cancelled.', mbError, MB_OK);
         Result := False; Exit;
       end;
     end;
@@ -216,7 +216,7 @@ begin
     AuthUser   := AuthPage.Values[0];
     AuthPass   := AuthPage.Values[1];
 
-    // easycom.ini schreiben
+    // Write settings to easycom.ini
     IniFile := ExpandConstant('{app}\easycom.ini');
     SetIniString('instance', 'http_port',   HttpPort,   IniFile);
     SetIniString('instance', 'telnet_port', TelnetPort, IniFile);
@@ -232,29 +232,29 @@ begin
     else
       SetIniString('instance', 'basic_auth', 'false', IniFile);
 
-     // index.html patchen: Port via PS-Skript
-     HtmlFile := ExpandConstant('{app}\wwwroot\index.html');
-     if FileExists(HtmlFile) then
-     begin
-       SaveStringToFile(ExpandConstant('{tmp}\patch.ps1'),
-         '$f = "' + HtmlFile + '"' + #13#10 +
-         '$c = [IO.File]::ReadAllText($f)' + #13#10 +
-         '$c = $c -replace "url: ''http://localhost:8083''", "url: ''http://localhost:' + HttpPort + '''"' + #13#10 +
-         '[IO.File]::WriteAllText($f, $c)',
-         False);
-       Exec('powershell.exe',
-         '-NoProfile -ExecutionPolicy Bypass -File "' +
-         ExpandConstant('{tmp}\patch.ps1') + '"',
-         '', SW_HIDE, ewWaitUntilTerminated, Dummy);
-       DeleteFile(ExpandConstant('{tmp}\patch.ps1'));
-     end;
+    // Patch index.html: update the default server URL via PowerShell script
+    HtmlFile := ExpandConstant('{app}\wwwroot\index.html');
+    if FileExists(HtmlFile) then
+    begin
+      SaveStringToFile(ExpandConstant('{tmp}\patch.ps1'),
+        '$f = "' + HtmlFile + '"' + #13#10 +
+        '$c = [IO.File]::ReadAllText($f)' + #13#10 +
+        '$c = $c -replace "url: ''http://localhost:8083''", "url: ''http://localhost:' + HttpPort + '''"' + #13#10 +
+        '[IO.File]::WriteAllText($f, $c)',
+        False);
+      Exec('powershell.exe',
+        '-NoProfile -ExecutionPolicy Bypass -File "' +
+        ExpandConstant('{tmp}\patch.ps1') + '"',
+        '', SW_HIDE, ewWaitUntilTerminated, Dummy);
+      DeleteFile(ExpandConstant('{tmp}\patch.ps1'));
+    end;
 
-    // URL ACL registrieren
+    // Register HTTP URL ACL
     Exec('netsh',
       'http add urlacl url="http://+:' + HttpPort + '/" user="Everyone"',
       '', SW_HIDE, ewWaitUntilTerminated, Dummy);
 
-    // Startmenue-Shortcut anlegen
+    // Create Start Menu shortcut
     ShellDir  := ExpandConstant('{commonprograms}\EasyComServer');
     ShellLink := ShellDir + '\EasyComServer Web Console.url';
     ForceDirectories(ShellDir);
@@ -272,6 +272,7 @@ var
 begin
   if CurUninstallStep = usUninstall then
   begin
+    // Remove HTTP URL ACL
     IniFile  := ExpandConstant('{app}\easycom.ini');
     HttpPort := GetIniString('instance', 'http_port', '8083', IniFile);
     Exec('netsh',
@@ -281,6 +282,7 @@ begin
 
   if CurUninstallStep = usPostUninstall then
   begin
+    // Remove Start Menu shortcut
     ShellLink := ExpandConstant('{commonprograms}\EasyComServer\EasyComServer Web Console.url');
     DeleteFile(ShellLink);
     RemoveDir(ExpandConstant('{commonprograms}\EasyComServer'));
