@@ -38,7 +38,8 @@ namespace EasyComServer
             {
                 string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "easycom.ini");
                 _config = ServerConfig.Load(iniPath);
-                Logger.Init(_config.LogFile, _config.ConsoleLogging);
+                Logger.Init(_config.LogFile, _config.ConsoleLogging,
+                    _config.LogMaxSizeMb, _config.LogMaxFiles);
                 Logger.Log($"EasyComServer starting, config: {iniPath}");
 
                 // Resolve relative DLL path to the exe directory so Windows
@@ -90,6 +91,7 @@ namespace EasyComServer
             foreach (var w in _wrappers.Values) { try { w.Dispose(); } catch { } }
             if (!_wrappers.ContainsValue(_wrapper)) _wrapper?.Dispose();
             Logger.Log("EasyComServer stopped.");
+            Logger.Close();
         }
 
         private void StartHttpListener(InstanceConfig inst)

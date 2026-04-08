@@ -8,8 +8,12 @@ namespace EasyComServer
     public class ServerConfig
     {
         public string DllPath { get; set; } = "EASY_COM.dll";
-        public string LogFile { get; set; } = "easycom.log";
+        public string LogFile { get; set; } = "logs/easycom.log";
         public bool ConsoleLogging { get; set; } = true;
+        /// <summary>Rotate when the log file exceeds this size. 0 = no size limit.</summary>
+        public int LogMaxSizeMb { get; set; } = 10;
+        /// <summary>Number of rotated files to keep. 0 = keep all.</summary>
+        public int LogMaxFiles { get; set; } = 10;
         public int ComIdleTimeoutSeconds { get; set; } = 300;
 
         // ── Global Basic Auth (applies to all instances) ──────────────────────
@@ -90,6 +94,8 @@ namespace EasyComServer
                         case "dll_path": cfg.DllPath = val; break;
                         case "log_file": cfg.LogFile = val; break;
                         case "console_logging": cfg.ConsoleLogging = ParseBool(val); break;
+                        case "log_max_size_mb": cfg.LogMaxSizeMb = int.Parse(val); break;
+                        case "log_max_files": cfg.LogMaxFiles = int.Parse(val); break;
                         case "com_idle_timeout": cfg.ComIdleTimeoutSeconds = int.Parse(val); break;
                         case "basic_auth": cfg.BasicAuthEnabled = ParseBool(val); break;
                         case "auth_user": cfg.BasicAuthUser = val; break;
@@ -119,7 +125,11 @@ namespace EasyComServer
 ; ========================================
 [global]
 dll_path         = EASY_COM.dll
-log_file         = easycom.log
+log_file         = logs/easycom.log
+; Log rotation: files rotate daily and when they exceed log_max_size_mb.
+; 0 disables the respective limit.
+log_max_size_mb  = 10
+log_max_files    = 10
 console_logging  = true
 com_idle_timeout = 300
 
