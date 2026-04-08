@@ -154,6 +154,13 @@ namespace EasyComServer
                     return;
                 }
 
+                // ── REST API (/api/...) ───────────────────────────────────────
+                if (absPath.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+                {
+                    RestApiHandler.Handle(ctx, cmdProcessor);
+                    return;
+                }
+
                 // ── /easy.cmd?COMMAND  (API endpoint) ─────────────────────────
                 if (absPath.EndsWith("easy.cmd", StringComparison.OrdinalIgnoreCase)
                     || absPath == "/")
@@ -282,6 +289,7 @@ namespace EasyComServer
                 ".jpg" or ".jpeg" => "image/jpeg",
                 ".svg"            => "image/svg+xml",
                 ".ico"            => "image/x-icon",
+                ".md"             => "text/markdown; charset=utf-8",
                 _                 => "application/octet-stream",
             };
 

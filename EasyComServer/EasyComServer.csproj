@@ -7,7 +7,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <PlatformTarget>x86</PlatformTarget>
     <Prefer32Bit>true</Prefer32Bit>
-	<Version>2.0.0</Version>
+	<Version>2.1.0</Version>
 	<Copyright>2009-2026 by Michael Fritzsche</Copyright>
   </PropertyGroup>
   <ItemGroup>
@@ -32,6 +32,8 @@
   </None>
 </ItemGroup>
 <ItemGroup>
-  <None Include="..\README.md" />
+  <Content Include="..\README.md" Link="wwwroot\readme.md">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </Content>
 </ItemGroup>
 </Project>

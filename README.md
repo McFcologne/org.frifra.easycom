@@ -120,7 +120,39 @@ http://localhost:8083/
 
 ---
 
-## HTTP API
+## REST API
+
+The server exposes a versioned REST API at `/api/v1/` with JSON responses.
+
+```
+http://SERVER:PORT/api/v1/system
+http://SERVER:PORT/api/v1/connection
+http://SERVER:PORT/api/v1/device/{netId}/clock
+http://SERVER:PORT/api/v1/device/{netId}/objects/{obj}/{index}
+```
+
+All responses follow a uniform envelope:
+
+```json
+{ "ok": true,  "result": "..." }
+{ "ok": false, "error":  "..." }
+```
+
+The full API specification (OpenAPI 3.0) is served at:
+
+```
+http://SERVER:PORT/openapi.yaml
+```
+
+An interactive Swagger UI test page is available at:
+
+```
+http://localhost:8083/swagger.html
+```
+
+---
+
+## HTTP API (legacy)
 
 ```
 http://SERVER:PORT/easy.cmd?COMMAND
@@ -176,7 +208,8 @@ EasyComServer\
 |---|---|---|
 | 0.0.1 | 2009-07-21 | Initial prototype — Windows Service implementation for Windows Server 2003 |
 | 1.0.0 | 2009-08-05 | First stable release of the Delphi-based server application |
-| 2.0.0 | 2026-04-08 | Full rewrite in C# (.NET 8) — migrated from legacy Delphi codebase to Visual Studio; added HTTP/Telnet gateway, multi-instance support, web console and Basic Auth |
+| 2.0.0 | 2026-04-07 | Full rewrite in C# (.NET 8) — migrated from legacy Delphi codebase to Visual Studio; added HTTP/Telnet gateway, multi-instance support, web console and Basic Auth |
+| 2.1.0 | 2026-04-08 | Added RESTful API (`/api/v1`), OpenAPI 3.0 specification (`openapi.yaml`), interactive Swagger UI test page (`/swagger.html`) |
 
 ---
 
