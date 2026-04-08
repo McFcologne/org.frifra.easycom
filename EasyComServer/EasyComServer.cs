@@ -41,6 +41,12 @@ namespace EasyComServer
                 Logger.Init(_config.LogFile, _config.ConsoleLogging);
                 Logger.Log($"EasyComServer starting, config: {iniPath}");
 
+                // Resolve relative DLL path to the exe directory so Windows
+                // does not accidentally pick up a copy from System32 or PATH.
+                if (!Path.IsPathRooted(_config.DllPath))
+                    _config.DllPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, _config.DllPath);
+                Logger.Log($"DLL path resolved to: {_config.DllPath}");
+
                 // Each instance gets its own EasyComWrapper
                 // so COM ports are managed independently
                 foreach (var inst in _config.Instances)
@@ -118,10 +124,10 @@ namespace EasyComServer
             try
             {
                 string absPath = ctx.Request.Url?.AbsolutePath ?? "/";
-                string query = ctx.Request.Url?.Query ?? "";
+                string query   = ctx.Request.Url?.Query ?? "";
 
                 // ── Always set CORS headers (including on 401 responses) ──────
-                ctx.Response.AddHeader("Access-Control-Allow-Origin", "*");
+                ctx.Response.AddHeader("Access-Control-Allow-Origin",  "*");
                 ctx.Response.AddHeader("Access-Control-Allow-Headers",
                     "Authorization, Content-Type");
                 ctx.Response.AddHeader("Access-Control-Allow-Methods",
@@ -269,14 +275,14 @@ namespace EasyComServer
             Path.GetExtension(path).ToLower() switch
             {
                 ".html" or ".htm" => "text/html; charset=utf-8",
-                ".css" => "text/css; charset=utf-8",
-                ".js" => "application/javascript; charset=utf-8",
-                ".json" => "application/json",
-                ".png" => "image/png",
+                ".css"            => "text/css; charset=utf-8",
+                ".js"             => "application/javascript; charset=utf-8",
+                ".json"           => "application/json",
+                ".png"            => "image/png",
                 ".jpg" or ".jpeg" => "image/jpeg",
-                ".svg" => "image/svg+xml",
-                ".ico" => "image/x-icon",
-                _ => "application/octet-stream",
+                ".svg"            => "image/svg+xml",
+                ".ico"            => "image/x-icon",
+                _                 => "application/octet-stream",
             };
 
         private void StartTelnetListener(InstanceConfig inst)

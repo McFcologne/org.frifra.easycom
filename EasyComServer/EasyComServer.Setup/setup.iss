@@ -11,7 +11,7 @@ SolidCompression=yes
 PrivilegesRequired=admin
 
 [Files]
-Source: "..\bin\Release\net8.0-windows\publish\*"; DestDir: "{app}"; Flags: recursesubdirs
+Source: "..\bin\Release\publish\*"; DestDir: "{app}"; Flags: recursesubdirs
 
 [Run]
 Filename: "sc"; Parameters: "create EasyComServer binPath=""{app}\EasyComServer.exe"" start=auto obj=""LocalSystem"" DisplayName=""Moeller EASY COM Server"""; Flags: runhidden

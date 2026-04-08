@@ -327,12 +327,8 @@ namespace EasyComServer
             {
                 var vi = System.Diagnostics.FileVersionInfo.GetVersionInfo(_dllPath);
 
-                // Try FileVersion string first
-                if (!string.IsNullOrWhiteSpace(vi.FileVersion))
-                    return vi.FileVersion;
-
-                // Fall back to numeric version parts (handles non-standard formats
-                // like "2, 4, 2, 2010" as stored in EASY_COM.dll)
+                // Always use numeric parts — FileVersion string may contain commas
+                // instead of dots (e.g. "2, 4, 2, 2010" from EASY_COM.dll)
                 if (vi.FileMajorPart > 0 || vi.FileMinorPart > 0)
                 {
                     string ver = $"{vi.FileMajorPart}.{vi.FileMinorPart}.{vi.FileBuildPart}.{vi.FilePrivatePart}";
@@ -346,7 +342,7 @@ namespace EasyComServer
 
                 return "unknown";
             }
-            catch { return "unknown"; }
+            catch(Exception ex) { return ex.Message; }
         }
 
         public string GetDefaultComInfo()
