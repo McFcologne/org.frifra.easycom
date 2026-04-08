@@ -326,9 +326,27 @@ namespace EasyComServer
             try
             {
                 var vi = System.Diagnostics.FileVersionInfo.GetVersionInfo(_dllPath);
-                return vi.FileVersion ?? "2.4 (assumed)";
+
+                // Try FileVersion string first
+                if (!string.IsNullOrWhiteSpace(vi.FileVersion))
+                    return vi.FileVersion;
+
+                // Fall back to numeric version parts (handles non-standard formats
+                // like "2, 4, 2, 2010" as stored in EASY_COM.dll)
+                if (vi.FileMajorPart > 0 || vi.FileMinorPart > 0)
+                {
+                    string ver = $"{vi.FileMajorPart}.{vi.FileMinorPart}.{vi.FileBuildPart}.{vi.FilePrivatePart}";
+                    bool supported = vi.FileMajorPart == 2
+                                  && vi.FileMinorPart >= 3
+                                  && vi.FileMinorPart <= 4;
+                    return supported
+                        ? $"{ver} (supported)"
+                        : $"{ver} (not tested — supported range: 2.3.x–2.4.x)";
+                }
+
+                return "unknown";
             }
-            catch { return "2.4 (assumed)"; }
+            catch { return "unknown"; }
         }
 
         public string GetDefaultComInfo()
