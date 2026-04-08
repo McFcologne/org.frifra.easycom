@@ -68,6 +68,25 @@ html, body {
   white-space: nowrap;
 }
 
+/* ── Instance switcher ───────────────────────────────────────────────────── */
+#instance-select {
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--dim);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: .15rem .4rem;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+}
+
+#instance-select:hover,
+#instance-select:focus {
+  border-color: var(--green3);
+  color: var(--green);
+}
+
 /* ── Status dot ──────────────────────────────────────────────────────────── */
 .dot {
   width: 8px;

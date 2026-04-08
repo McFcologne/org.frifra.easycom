@@ -32,6 +32,51 @@ var
   PortPage: TInputQueryWizardPage;
   AuthPage: TInputQueryWizardPage;
 
+// Compute SHA-256 via PowerShell and return "sha256:<hex>".
+// Falls back to the plaintext value if PowerShell fails.
+function HashPasswordSha256(const Password: String): String;
+var
+  PS1File, HashFile, EscapedPw: String;
+  Lines: TArrayOfString;
+  ResultCode, I: Integer;
+  C: Char;
+begin
+  Result := Password;
+
+  // Escape single quotes for a PowerShell single-quoted string: ' -> ''
+  EscapedPw := '';
+  for I := 1 to Length(Password) do
+  begin
+    C := Password[I];
+    if C = '''' then
+      EscapedPw := EscapedPw + ''''''
+    else
+      EscapedPw := EscapedPw + C;
+  end;
+
+  PS1File  := ExpandConstant('{tmp}\echash.ps1');
+  HashFile := ExpandConstant('{tmp}\echash.tmp');
+
+  SaveStringToFile(PS1File,
+    '$bytes = [System.Text.Encoding]::UTF8.GetBytes(''' + EscapedPw + ''')' + #13#10 +
+    '$hash  = [System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)' + #13#10 +
+    '$hex   = ([System.BitConverter]::ToString($hash)).Replace(''-'', '''').ToLower()' + #13#10 +
+    'Set-Content -Path "' + HashFile + '" -Value ("sha256:"+$hex) -Encoding ASCII -NoNewline',
+    False);
+
+  Exec('powershell.exe',
+    '-NoProfile -ExecutionPolicy Bypass -File "' + PS1File + '"',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  DeleteFile(PS1File);
+
+  if LoadStringsFromFile(HashFile, Lines) and (GetArrayLength(Lines) > 0) then
+  begin
+    Result := Lines[0];
+    DeleteFile(HashFile);
+  end;
+end;
+
 function DotNetInstalled: Boolean;
 var
   Key: String;
@@ -226,9 +271,9 @@ begin
 
     if (AuthUser <> '') and (AuthPass <> '') then
     begin
-      SetIniString('instance', 'basic_auth', 'true',   IniFile);
-      SetIniString('instance', 'auth_user',  AuthUser, IniFile);
-      SetIniString('instance', 'auth_pass',  AuthPass, IniFile);
+      SetIniString('instance', 'basic_auth', 'true',                      IniFile);
+      SetIniString('instance', 'auth_user',  AuthUser,                    IniFile);
+      SetIniString('instance', 'auth_pass',  HashPasswordSha256(AuthPass), IniFile);
     end
     else
       SetIniString('instance', 'basic_auth', 'false', IniFile);

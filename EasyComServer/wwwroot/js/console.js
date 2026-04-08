@@ -180,6 +180,29 @@ document.getElementById('cmd-input').addEventListener('keydown', e => {
   }
 });
 
+async function loadInstances() {
+  try {
+    const r = await fetch(cfg.url + '/api/v1/instances', { credentials: 'include', signal: AbortSignal.timeout(4000) });
+    if (!r.ok) return;
+    const data = await r.json();
+    const instances = data.instances;
+    if (!Array.isArray(instances) || instances.length <= 1) return;
+    const sel = document.getElementById('instance-select');
+    sel.innerHTML = '';
+    instances.forEach(inst => {
+      const opt = document.createElement('option');
+      opt.value = inst.port;
+      opt.textContent = inst.name + ' :' + inst.port;
+      if (inst.current) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.style.display = '';
+    sel.addEventListener('change', () => {
+      location.href = location.protocol + '//' + location.hostname + ':' + sel.value + '/index.html';
+    });
+  } catch(e) { /* ignore if single-instance or server unreachable */ }
+}
+
 async function loadServerConfig() {
   try {
     const r1 = await fetch(cfg.url + '/easy.cmd?' + encodeURIComponent('show configuration com_port'), { credentials: 'include' });
@@ -220,6 +243,7 @@ async function loadServerConfig() {
   appendLine('sys', new Date().toLocaleString('en'));
   appendLine('sep', '\u2500'.repeat(52));
 
+  loadInstances();
   loadServerConfig();
   runCmd('show server');
   document.getElementById('cmd-input').focus();

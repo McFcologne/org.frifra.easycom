@@ -466,7 +466,7 @@ paths:
         "200": { $ref: '#/components/responses/Ok' }
         "400": { $ref: '#/components/responses/BadRequest' }
 
-  # ── Process image ─────────────────────────────────────────────────────────
+  # ── Objects ───────────────────────────────────────────────────────────────
 
   /device/{netId}/objects/{obj}/{index}:
     parameters:
@@ -495,7 +495,7 @@ paths:
       summary: Read object value
       description: Reads a single process-image object (input, output, marker, etc.) from the device.
       operationId: readObjectValue
-      tags: [Process Image]
+      tags: [Objects]
       responses:
         "200": { $ref: '#/components/responses/Ok' }
         "400": { $ref: '#/components/responses/BadRequest' }
@@ -510,7 +510,7 @@ paths:
         The device will be set to `on`, held for `ms` milliseconds, then set to `off`.
         Useful for toggling relay outputs.
       operationId: writeObjectValue
-      tags: [Process Image]
+      tags: [Objects]
       requestBody:
         required: true
         content:
@@ -637,7 +637,7 @@ tags:
     description: Manage COM port and Ethernet connections to EASY devices
   - name: Device
     description: Device-level operations (clock, program control, lock/unlock)
-  - name: Process Image
+  - name: Objects
     description: Read and write PLC inputs, outputs, markers, and other objects
   - name: Time Switches
     description: Configure year and 7-day time switch schedules

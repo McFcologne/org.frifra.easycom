@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 namespace EasyComServer
@@ -504,6 +505,28 @@ namespace EasyComServer
             "SET CONFIGURATION \"var=value\"\r\n" +
             "  HELP\n" +
             "  QUIT";
+
+        // ── Instances ─────────────────────────────────────────────────────────
+
+        /// <summary>Returns the open-connection string for the local instance only.</summary>
+        public string GetLocalConnectionInfo() => _wrapper.GetOpenConnections();
+
+        /// <summary>Returns a JSON array of all HTTP-enabled instances with name, port, and current flag.</summary>
+        public string GetInstancesJson()
+        {
+            var arr = new JsonArray();
+            foreach (var inst in _config.Instances)
+            {
+                if (!inst.HttpEnabled) continue;
+                arr.Add(new JsonObject
+                {
+                    ["name"]    = inst.Name,
+                    ["port"]    = inst.HttpPort,
+                    ["current"] = inst.Name == _instance.Name
+                });
+            }
+            return arr.ToJsonString();
+        }
 
         // ── Helpers ───────────────────────────────────────────────────────────
 

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -48,6 +49,15 @@ namespace EasyComServer
 
             switch (segs[0])
             {
+                // /api/v1/instances
+                case "instances":
+                    if (segs.Length == 1 && method == "GET")
+                    {
+                        string json = cmd.GetInstancesJson();
+                        return (200, $"{{\"ok\":true,\"instances\":{json}}}");
+                    }
+                    break;
+
                 // /api/v1/system[/error|/connections]
                 case "system":
                     if (segs.Length == 1 && method == "GET")
@@ -56,7 +66,7 @@ namespace EasyComServer
                         return segs[1] switch
                         {
                             "error"       => OkCmd(cmd, "getlastsystemerror"),
-                            "connections" => OkCmd(cmd, "show connections"),
+                            "connections" => ConnectionsArray(cmd),
                             _             => (404, Error($"Unknown system resource: {segs[1]}"))
                         };
                     break;
@@ -64,7 +74,7 @@ namespace EasyComServer
                 // /api/v1/connection[/baudrate|/waitingtime|/com|/ethernet]
                 case "connection":
                     if (segs.Length == 1 && method == "GET")
-                        return OkCmd(cmd, "show connections");
+                        return (200, Ok(cmd.GetLocalConnectionInfo()));
                     if (segs.Length == 2)
                         return RouteConnection(method, segs[1], ctx, cmd);
                     break;
@@ -302,6 +312,20 @@ namespace EasyComServer
             if (result.StartsWith("ERROR"))
                 return (400, Error(result[5..].TrimStart()));
             return (200, Ok(result.Trim()));
+        }
+
+        private static (int, string) ConnectionsArray(CommandProcessor cmd)
+        {
+            string result = cmd.Execute("show connections");
+            if (result.StartsWith("ERROR"))
+                return (400, Error(result[5..].TrimStart()));
+            string[] lines = result
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.Trim())
+                .Where(l => l.Length > 0)
+                .ToArray();
+            var arr = new JsonArray(lines.Select(l => (JsonNode?)JsonValue.Create(l)).ToArray());
+            return (200, new JsonObject { ["ok"] = true, ["connections"] = arr }.ToJsonString());
         }
 
         private static string Ok(string result) =>

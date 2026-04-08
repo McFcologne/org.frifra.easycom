@@ -38,5 +38,8 @@
   <Content Include="..\README.md" Link="wwwroot\readme.md">
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
   </Content>
+  <Content Include="..\LICENSE" Link="wwwroot\LICENSE">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </Content>
 </ItemGroup>
 </Project>

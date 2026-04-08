@@ -135,6 +135,10 @@ com_idle_timeout = 300
 
 ; HTTP Basic Auth (global — applies to all instances)
 ; Leave auth_pass empty to disable authentication.
+; Use a SHA-256 hash for auth_pass (recommended):
+;   EasyComServer.exe --hash-password <yourpassword>
+; Copy the output (sha256:<hex>) as the auth_pass value.
+; Plaintext passwords are still accepted for backward compatibility.
 basic_auth       = false
 auth_user        = admin
 auth_pass        =
