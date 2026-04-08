@@ -354,7 +354,7 @@ namespace EasyComServer
             sb.AppendLine($"Instance:               {_instance.Name}");
             sb.AppendLine($"HTTP port:              {(_instance.HttpEnabled ? _instance.HttpPort.ToString() : "disabled")}");
             sb.AppendLine($"Telnet port:            {(_instance.TelnetEnabled ? _instance.TelnetPort.ToString() : "disabled")}");
-            sb.AppendLine($"Default COM:            {_wrapper.GetDefaultComInfo()}");
+            sb.AppendLine($"COM port:               {_wrapper.GetComInfo()}");
             sb.AppendLine($"COM idle timeout:       {_config.ComIdleTimeoutSeconds}s");
             sb.AppendLine($"Single-conn active:     {(_wrapper.IsSingleConnected ? "yes" : "no (auto-opens on next command)")}");
             sb.AppendLine($"Console Logging:        {(_config.ConsoleLogging ? "Enabled" : "Disabled")}");
@@ -430,64 +430,64 @@ namespace EasyComServer
         // ── HELP ──────────────────────────────────────────────────────────────
 
         private static string BuildHelp() =>
-            "EasyComServer Command Reference\n" +
-            "================================\n" +
-            "Commands can be abbreviated to a unique prefix (SH SER = SHOW SERVER)\n" +
-            "\n" +
-            "Connection:\n" +
-            "  OPEN_COMPORT <port> <baud>\n" +
-            "  CLOSE_COMPORT\n" +
-            "  GETCURRENT_BAUDRATE\n" +
-            "  SET_USERWAITINGTIME <ms>\n" +
-            "  GET_USERWAITINGTIME\n" +
-            "  OPEN_ETHERNETPORT <ip> <port> <baud> <nobaudscan 0|1>\n" +
-            "  CLOSE_ETHERNETPORT\n" +
-            "  GETLASTSYSTEMERROR\n" +
-            "\n" +
-            "Device:\n" +
-            "  START_PROGRAM <netid>\n" +
-            "  STOP_PROGRAM <netid>\n" +
-            "  READ_CLOCK <netid>\n" +
-            "  WRITE_CLOCK <netid> <year> <month> <day> <hour> <min>\n" +
-            "  UNLOCK_DEVICE <netid> <password>\n" +
-            "  LOCK_DEVICE <netid>\n" +
-            "\n" +
-            "Process image:\n" +
-            "  READ_OBJECT_VALUE <netid> <obj> <index>\n" +
-            "  WRITE_OBJECT_VALUE <netid> <obj> <index> <length> <data>\n" +
-            "  WRITE_OBJECT_VALUE <netid> <obj> <index> <length> <d1>|<d2>|<ms>   (Pulse)\n" +
-            "    Example: WRITE_OBJECT_VALUE 1 4 1 1 1|0|10\n" +
-            "    Writes 1, waits 10ms, writes 0\n" +
-            "\n" +
-            "Time switches:\n" +
-            "  READ_CHANNEL_YEARTIMESWITCH  <netid> <index> <channel>\n" +
-            "  WRITE_CHANNEL_YEARTIMESWITCH <netid> <index> <channel> <onY> <onM> <onD> <offY> <offM> <offD>\n" +
-            "  READ_CHANNEL_7DAYTIMESWITCH  <netid> <index> <channel>\n" +
-            "  WRITE_CHANNEL_7DAYTIMESWITCH <netid> <index> <channel> <dy1> <dy2> <onH> <onM> <offH> <offM>\n" +
-            "\n" +
-            "MC_ multi-connection:\n" +
-            "  MC_OPEN_COMPORT <port> <baud>                      -> returns HANDLE\n" +
-            "  MC_CLOSE_COMPORT <handle>\n" +
-            "  MC_CLOSEALL\n" +
-            "  MC_OPEN_ETHERNETPORT <handle> <ip> <port> <baud> <nobaudscan>\n" +
-            "  MC_CLOSE_ETHERNETPORT <handle>\n" +
-            "  MC_GETCURRENT_BAUDRATE <handle>\n" +
-            "  MC_SET_USERWAITINGTIME <handle> <ms>\n" +
-            "  MC_GET_USERWAITINGTIME <handle>\n" +
-            "  MC_START_PROGRAM <handle> <netid>\n" +
-            "  MC_STOP_PROGRAM <handle> <netid>\n" +
-            "  MC_READ_CLOCK <handle> <netid>\n" +
-            "  MC_WRITE_CLOCK <handle> <netid> <year> <month> <day> <hour> <min>\n" +
-            "  MC_READ_OBJECT_VALUE <handle> <netid> <obj> <index>\n" +
-            "  MC_WRITE_OBJECT_VALUE <handle> <netid> <obj> <index> <length> <data>[|d2|ms]\n" +
-            "  MC_UNLOCK_DEVICE <handle> <netid> <password>\n" +
-            "  MC_LOCK_DEVICE <handle> <netid>\n" +
-            "\n" +
-            "Server:\n" +
-            "  SHOW SERVER\n" +
-            "  SHOW CONNECTIONS\n" +
-            "  SHOW CONFIGURATION <var>\n" +
-            "  SET CONFIGURATION \"var=value\"\n" +
+            "EasyComServer - Command Reference\r\n" +
+            "Abbreviations allowed (e.g. SH SER = SHOW SERVER)\r\n" +
+            "\r\n" +
+            "--- Connection ---\r\n" +
+            "OPEN_COMPORT <port> <baud>\r\n" +
+            "CLOSE_COMPORT\r\n" +
+            "GETCURRENT_BAUDRATE\r\n" +
+            "SET_USERWAITINGTIME <ms>\r\n" +
+            "GET_USERWAITINGTIME\r\n" +
+            "OPEN_ETHERNETPORT <ip> <port> <baud> <nobaudscan>\r\n" +
+            "CLOSE_ETHERNETPORT\r\n" +
+            "GETLASTSYSTEMERROR\r\n" +
+            "\r\n" +
+            "--- Device ---\r\n" +
+            "START_PROGRAM <netid>\r\n" +
+            "STOP_PROGRAM <netid>\r\n" +
+            "READ_CLOCK <netid>\r\n" +
+            "WRITE_CLOCK <netid> <y> <m> <d> <h> <min>\r\n" +
+            "UNLOCK_DEVICE <netid> <password>\r\n" +
+            "LOCK_DEVICE <netid>\r\n" +
+            "\r\n" +
+            "--- Process image ---\r\n" +
+            "READ_OBJECT_VALUE <netid> <obj> <index>\r\n" +
+            "WRITE_OBJECT_VALUE <netid> <obj> <index> <len> <data>\r\n" +
+            "WRITE_OBJECT_VALUE ... <d1>|<d2>|<ms>  (pulse)\r\n" +
+            "  e.g. WRITE_OBJECT_VALUE 1 4 1 1 1|0|10\r\n" +
+            "\r\n" +
+            "--- Time switches ---\r\n" +
+            "READ_CHANNEL_YEARTIMESWITCH <netid> <idx> <ch>\r\n" +
+            "WRITE_CHANNEL_YEARTIMESWITCH <netid> <idx> <ch>\r\n" +
+            "  <onY> <onM> <onD> <offY> <offM> <offD>\r\n" +
+            "READ_CHANNEL_7DAYTIMESWITCH <netid> <idx> <ch>\r\n" +
+            "WRITE_CHANNEL_7DAYTIMESWITCH <netid> <idx> <ch>\r\n" +
+            "  <dy1> <dy2> <onH> <onM> <offH> <offM>\r\n" +
+            "\r\n" +
+            "--- MC_ multi-connection ---\r\n" +
+            "MC_OPEN_COMPORT <port> <baud>  -> HANDLE\r\n" +
+            "MC_CLOSE_COMPORT <handle>\r\n" +
+            "MC_CLOSEALL\r\n" +
+            "MC_OPEN_ETHERNETPORT <h> <ip> <port> <baud> <nobs>\r\n" +
+            "MC_CLOSE_ETHERNETPORT <handle>\r\n" +
+            "MC_GETCURRENT_BAUDRATE <handle>\r\n" +
+            "MC_SET_USERWAITINGTIME <handle> <ms>\r\n" +
+            "MC_GET_USERWAITINGTIME <handle>\r\n" +
+            "MC_START_PROGRAM <handle> <netid>\r\n" +
+            "MC_STOP_PROGRAM <handle> <netid>\r\n" +
+            "MC_READ_CLOCK <handle> <netid>\r\n" +
+            "MC_WRITE_CLOCK <h> <netid> <y> <m> <d> <h> <min>\r\n" +
+            "MC_READ_OBJECT_VALUE <h> <netid> <obj> <index>\r\n" +
+            "MC_WRITE_OBJECT_VALUE <h> <netid> <obj> <idx> <len> <data>[|d2|ms]\r\n" +
+            "MC_UNLOCK_DEVICE <handle> <netid> <password>\r\n" +
+            "MC_LOCK_DEVICE <handle> <netid>\r\n" +
+            "\r\n" +
+            "--- Server ---\r\n" +
+            "SHOW SERVER\r\n" +
+            "SHOW CONNECTIONS\r\n" +
+            "SHOW CONFIGURATION <var>\r\n" +
+            "SET CONFIGURATION \"var=value\"\r\n" +
             "  HELP\n" +
             "  QUIT";
 

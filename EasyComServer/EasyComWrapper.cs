@@ -211,6 +211,8 @@ namespace EasyComServer
         private int _comIdleSeconds;
         private int _defaultComPort = 0;
         private int _defaultBaudRate = 9600;
+        private int _connectedComPort = 0;   // actual port currently open
+        private int _connectedBaudRate = 0;  // actual baud rate currently open
 
         public EasyComWrapper(string dllPath)
         {
@@ -285,6 +287,8 @@ namespace EasyComServer
 
                 _singleConnected = true;
                 _singleLastActivity = DateTime.Now;
+                _connectedComPort = comPort;
+                _connectedBaudRate = baudRate;
                 // Update defaults so KeepAlive and idle timer know which port is open
                 _defaultComPort = comPort;
                 _defaultBaudRate = baudRate;
@@ -342,13 +346,25 @@ namespace EasyComServer
 
                 return "unknown";
             }
-            catch(Exception ex) { return ex.Message; }
+            catch { return "unknown"; }
         }
 
         public string GetDefaultComInfo()
             => _defaultComPort > 0
                 ? $"COM{_defaultComPort} @ {_defaultBaudRate} baud"
                 : "not configured";
+
+        public string GetComInfo()
+        {
+            lock (_lock)
+            {
+                if (_singleConnected)
+                    return $"COM{_connectedComPort} @ {_connectedBaudRate} baud (connected)";
+                if (_defaultComPort > 0)
+                    return $"COM{_defaultComPort} @ {_defaultBaudRate} baud (auto-connect on next command)";
+                return "not configured";
+            }
+        }
 
         public bool IsSingleConnected { get { lock (_lock) return _singleConnected; } }
 
@@ -380,10 +396,10 @@ namespace EasyComServer
             {
                 var sb = new StringBuilder();
                 if (_singleConnected)
-                    sb.AppendLine($"  [single] COM{_defaultComPort} @ {_defaultBaudRate} baud" +
+                    sb.AppendLine($"  COM{_defaultComPort} @ {_defaultBaudRate} baud" +
                                   $"  idle={(DateTime.Now - _singleLastActivity).TotalSeconds:F0}s");
                 foreach (var kv in _connections)
-                    sb.AppendLine($"  [mc] Handle={kv.Key} {kv.Value.Type} {kv.Value.Target}" +
+                    sb.AppendLine($"  Handle={kv.Key} {kv.Value.Type} {kv.Value.Target}" +
                                   $"  since={kv.Value.OpenedAt:HH:mm:ss}" +
                                   $"  idle={(DateTime.Now - kv.Value.LastActivity).TotalSeconds:F0}s");
                 return sb.Length == 0 ? "none" : sb.ToString().TrimEnd();
@@ -402,6 +418,8 @@ namespace EasyComServer
                 {
                     _singleConnected = true;
                     _singleLastActivity = DateTime.Now;
+                    _connectedComPort = comPortNr;
+                    _connectedBaudRate = baudRate;
                     _defaultComPort = comPortNr;
                     _defaultBaudRate = baudRate;
                     return $"OK OPEN_COMPORT COM{comPortNr} {baudRate}";
@@ -415,7 +433,7 @@ namespace EasyComServer
             lock (_lock)
             {
                 int rc = Close_ComPort();
-                if (rc == 0) _singleConnected = false;
+                if (rc == 0) { _singleConnected = false; _connectedComPort = 0; _connectedBaudRate = 0; }
                 return rc == 0 ? "OK CLOSE_COMPORT" : EasyErrorString(rc);
             }
         }
