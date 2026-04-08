@@ -41,8 +41,8 @@ namespace EasyComServer
                 Logger.Init(_config.LogFile, _config.ConsoleLogging);
                 Logger.Log($"EasyComServer starting, config: {iniPath}");
 
-                // Jede Instanz bekommt ihren eigenen EasyComWrapper
-                // damit COM-Ports unabhaengig voneinander verwaltet werden
+                // Each instance gets its own EasyComWrapper
+                // so COM ports are managed independently
                 foreach (var inst in _config.Instances)
                 {
                     var wrapper = new EasyComWrapper(_config.DllPath);
@@ -52,7 +52,7 @@ namespace EasyComServer
                     _wrappers[inst.Name] = wrapper;
                 }
 
-                // _wrapper zeigt auf ersten Wrapper fuer Abwaertskompatibilitaet
+                // _wrapper points to the first wrapper for backward compatibility
                 _wrapper = _wrappers.Count > 0
                     ? _wrappers.Values.First()
                     : new EasyComWrapper(_config.DllPath);
@@ -118,16 +118,16 @@ namespace EasyComServer
             try
             {
                 string absPath = ctx.Request.Url?.AbsolutePath ?? "/";
-                string query   = ctx.Request.Url?.Query ?? "";
+                string query = ctx.Request.Url?.Query ?? "";
 
-                // ── CORS immer setzen (auch bei 401) ─────────────────────────
-                ctx.Response.AddHeader("Access-Control-Allow-Origin",  "*");
+                // ── Always set CORS headers (including on 401 responses) ──────
+                ctx.Response.AddHeader("Access-Control-Allow-Origin", "*");
                 ctx.Response.AddHeader("Access-Control-Allow-Headers",
                     "Authorization, Content-Type");
                 ctx.Response.AddHeader("Access-Control-Allow-Methods",
                     "GET, POST, OPTIONS");
 
-                // ── OPTIONS preflight immer erlauben (kein Auth) ─────────────
+                // ── Always allow OPTIONS preflight without authentication ─────
                 if (ctx.Request.HttpMethod == "OPTIONS")
                 {
                     ctx.Response.StatusCode = 204;
@@ -135,7 +135,7 @@ namespace EasyComServer
                     return;
                 }
 
-                // ── Basic Auth fuer alle Requests ────────────────────────────
+                // ── Basic authentication required for all requests ────────────
                 if (_config.BasicAuthEnabled && !CheckBasicAuth(ctx))
                 {
                     ctx.Response.StatusCode = 401;
@@ -148,18 +148,18 @@ namespace EasyComServer
                     return;
                 }
 
-                // ── /easy.cmd?COMMAND  (API endpoint) ────────────────────────
+                // ── /easy.cmd?COMMAND  (API endpoint) ─────────────────────────
                 if (absPath.EndsWith("easy.cmd", StringComparison.OrdinalIgnoreCase)
                     || absPath == "/")
                 {
-                    // Query-String parsen: _=timestamp und andere key=value Parameter
-                    // herausfiltern, nur den eigentlichen Befehl behalten.
-                    // Beispiel: ?_=1543364225097&WRITE_OBJECT_VALUE%201%204%201%201
-                    //       oder ?WRITE_OBJECT_VALUE%201%204%201%201
+                    // Parse the query string: strip key=value parameters such as
+                    // _=timestamp (jQuery cache buster) and keep only the EASY command.
+                    // Example: ?_=1543364225097&WRITE_OBJECT_VALUE%201%204%201%201
+                    //      or: ?WRITE_OBJECT_VALUE%201%204%201%201
                     string rawQuery = Uri.UnescapeDataString(query.TrimStart('?')).Trim();
                     string cmd = ParseEasyCmd(rawQuery);
 
-                    // Root ohne Query -> redirect zur Konsole
+                    // Root path without query → redirect to the web console
                     if (string.IsNullOrEmpty(cmd) && absPath == "/")
                     {
                         ctx.Response.Redirect("/index.html");
@@ -182,7 +182,7 @@ namespace EasyComServer
                 string filePath = Path.Combine(wwwroot,
                     absPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
 
-                // Default document
+                // Default document handling
                 if (Directory.Exists(filePath))
                     filePath = Path.Combine(filePath, "index.html");
 
@@ -229,9 +229,9 @@ namespace EasyComServer
         }
 
         /// <summary>
-        /// Extrahiert den EASY-Befehl aus dem Query-String.
-        /// Ignoriert key=value Parameter wie _=timestamp (jQuery cache buster).
-        /// Unterstuetzt beide Formate:
+        /// Extracts the EASY command from the query string.
+        /// Ignores key=value parameters such as _=timestamp (jQuery cache buster).
+        /// Supports both formats:
         ///   /easy.cmd?WRITE_OBJECT_VALUE 1 4 1 1 1|0|10
         ///   /easy.cmd?_=1543364225097&WRITE_OBJECT_VALUE 1 4 1 1 1|0|10
         /// </summary>
@@ -269,14 +269,14 @@ namespace EasyComServer
             Path.GetExtension(path).ToLower() switch
             {
                 ".html" or ".htm" => "text/html; charset=utf-8",
-                ".css"            => "text/css; charset=utf-8",
-                ".js"             => "application/javascript; charset=utf-8",
-                ".json"           => "application/json",
-                ".png"            => "image/png",
+                ".css" => "text/css; charset=utf-8",
+                ".js" => "application/javascript; charset=utf-8",
+                ".json" => "application/json",
+                ".png" => "image/png",
                 ".jpg" or ".jpeg" => "image/jpeg",
-                ".svg"            => "image/svg+xml",
-                ".ico"            => "image/x-icon",
-                _                 => "application/octet-stream",
+                ".svg" => "image/svg+xml",
+                ".ico" => "image/x-icon",
+                _ => "application/octet-stream",
             };
 
         private void StartTelnetListener(InstanceConfig inst)

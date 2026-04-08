@@ -7,15 +7,15 @@ namespace EasyComServer
 {
     public class ServerConfig
     {
-        public string DllPath            { get; set; } = "EASY_COM.dll";
-        public string LogFile            { get; set; } = "easycom.log";
-        public bool   ConsoleLogging     { get; set; } = true;
-        public int    ComIdleTimeoutSeconds { get; set; } = 300;
+        public string DllPath { get; set; } = "EASY_COM.dll";
+        public string LogFile { get; set; } = "easycom.log";
+        public bool ConsoleLogging { get; set; } = true;
+        public int ComIdleTimeoutSeconds { get; set; } = 300;
 
-        // ── Globale Basic Auth (gilt fuer alle Instanzen) ─────────────────────
-        public bool   BasicAuthEnabled   { get; set; } = false;
-        public string BasicAuthUser      { get; set; } = "admin";
-        public string BasicAuthPass      { get; set; } = "";
+        // ── Global Basic Auth (applies to all instances) ──────────────────────
+        public bool BasicAuthEnabled { get; set; } = false;
+        public string BasicAuthUser { get; set; } = "admin";
+        public string BasicAuthPass { get; set; } = "";
 
         public List<InstanceConfig> Instances { get; set; } = new();
 
@@ -29,7 +29,7 @@ namespace EasyComServer
                 return cfg;
             }
 
-            string? currentSection  = null;
+            string? currentSection = null;
             InstanceConfig? currentInstance = null;
 
             foreach (var rawLine in File.ReadAllLines(iniPath, Encoding.UTF8))
@@ -70,34 +70,33 @@ namespace EasyComServer
                 {
                     switch (key)
                     {
-                        case "name":           currentInstance.Name          = val; break;
-                        case "http_enabled":   currentInstance.HttpEnabled   = ParseBool(val); break;
-                        case "http_port":      currentInstance.HttpPort      = int.Parse(val); break;
+                        case "name": currentInstance.Name = val; break;
+                        case "http_enabled": currentInstance.HttpEnabled = ParseBool(val); break;
+                        case "http_port": currentInstance.HttpPort = int.Parse(val); break;
                         case "telnet_enabled": currentInstance.TelnetEnabled = ParseBool(val); break;
-                        case "telnet_port":    currentInstance.TelnetPort    = int.Parse(val); break;
-                        case "com_port":       currentInstance.ComPort       = int.Parse(val); break;
-                        case "baud_rate":      currentInstance.BaudRate      = int.Parse(val); break;
-                        // Auth-Einstellungen auch aus [instance] lesen (Abwaertskompatibilitaet)
-                        case "basic_auth":     cfg.BasicAuthEnabled          = ParseBool(val); break;
-                        case "auth_user":      cfg.BasicAuthUser             = val; break;
-                        case "auth_pass":      cfg.BasicAuthPass             = val; break;
+                        case "telnet_port": currentInstance.TelnetPort = int.Parse(val); break;
+                        case "com_port": currentInstance.ComPort = int.Parse(val); break;
+                        case "baud_rate": currentInstance.BaudRate = int.Parse(val); break;
+                        // Auth settings also read from [instance] for backward compatibility
+                        case "basic_auth": cfg.BasicAuthEnabled = ParseBool(val); break;
+                        case "auth_user": cfg.BasicAuthUser = val; break;
+                        case "auth_pass": cfg.BasicAuthPass = val; break;
                     }
                 }
                 else
                 {
                     switch (key)
                     {
-                        case "dll_path":         cfg.DllPath               = val; break;
-                        case "log_file":         cfg.LogFile               = val; break;
-                        case "console_logging":  cfg.ConsoleLogging        = ParseBool(val); break;
+                        case "dll_path": cfg.DllPath = val; break;
+                        case "log_file": cfg.LogFile = val; break;
+                        case "console_logging": cfg.ConsoleLogging = ParseBool(val); break;
                         case "com_idle_timeout": cfg.ComIdleTimeoutSeconds = int.Parse(val); break;
-                        case "basic_auth":       cfg.BasicAuthEnabled      = ParseBool(val); break;
-                        case "auth_user":        cfg.BasicAuthUser         = val; break;
-                        case "auth_pass":        cfg.BasicAuthPass         = val; break;
+                        case "basic_auth": cfg.BasicAuthEnabled = ParseBool(val); break;
+                        case "auth_user": cfg.BasicAuthUser = val; break;
+                        case "auth_pass": cfg.BasicAuthPass = val; break;
                     }
                 }
             }
-
 
             if (currentInstance != null)
                 cfg.Instances.Add(currentInstance);
@@ -109,9 +108,9 @@ namespace EasyComServer
         }
 
         private static bool ParseBool(string s)
-            => s.Equals("true",    StringComparison.OrdinalIgnoreCase)
+            => s.Equals("true", StringComparison.OrdinalIgnoreCase)
             || s == "1"
-            || s.Equals("yes",     StringComparison.OrdinalIgnoreCase)
+            || s.Equals("yes", StringComparison.OrdinalIgnoreCase)
             || s.Equals("enabled", StringComparison.OrdinalIgnoreCase);
 
         private static void WriteDefault(string path)
@@ -124,8 +123,8 @@ log_file         = easycom.log
 console_logging  = true
 com_idle_timeout = 300
 
-; HTTP Basic Auth (global - gilt fuer alle Instanzen)
-; Leer lassen um Auth zu deaktivieren.
+; HTTP Basic Auth (global — applies to all instances)
+; Leave auth_pass empty to disable authentication.
 basic_auth       = false
 auth_user        = admin
 auth_pass        =
@@ -144,13 +143,13 @@ baud_rate        = 9600
 
     public class InstanceConfig
     {
-        public string Name           { get; set; } = "default";
-        public bool   HttpEnabled    { get; set; } = true;
-        public int    HttpPort       { get; set; } = 8083;
-        public bool   TelnetEnabled  { get; set; } = true;
-        public int    TelnetPort     { get; set; } = 8023;
-        public int    ComPort        { get; set; } = 0;
-        public int    BaudRate       { get; set; } = 9600;
-        public bool   HasComConfig   => ComPort > 0;
+        public string Name { get; set; } = "default";
+        public bool HttpEnabled { get; set; } = true;
+        public int HttpPort { get; set; } = 8083;
+        public bool TelnetEnabled { get; set; } = true;
+        public int TelnetPort { get; set; } = 8023;
+        public int ComPort { get; set; } = 0;
+        public int BaudRate { get; set; } = 9600;
+        public bool HasComConfig => ComPort > 0;
     }
 }

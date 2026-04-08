@@ -45,10 +45,10 @@ namespace EasyComServer
         public CommandProcessor(EasyComWrapper wrapper, ServerConfig config,
             InstanceConfig instance, DateTime startTime, string dllVersion)
         {
-            _wrapper    = wrapper;
-            _config     = config;
-            _instance   = instance;
-            _startTime  = startTime;
+            _wrapper = wrapper;
+            _config = config;
+            _instance = instance;
+            _startTime = startTime;
             _dllVersion = dllVersion;
         }
 
@@ -62,7 +62,7 @@ namespace EasyComServer
 
                 Logger.Log($"CMD: {commandLine}");
 
-                // Instanz-spezifischen COM-Port setzen bevor Auto-Connect greift
+                // Apply the instance-specific COM port before auto-connect kicks in
                 if (_instance.HasComConfig)
                     _wrapper.SetInstanceCom(_instance.ComPort, _instance.BaudRate);
 
@@ -71,34 +71,34 @@ namespace EasyComServer
 
                 string result = verb switch
                 {
-                    "help"  => BuildHelp(),
-                    "quit"  => "Goodbye.",
-                    "show"  => ExecuteShow(args),
-                    "set"   => ExecuteSet(args),
+                    "help" => BuildHelp(),
+                    "quit" => "Goodbye.",
+                    "show" => ExecuteShow(args),
+                    "set" => ExecuteSet(args),
                     "getlastsystemerror" => _wrapper.GetLastSysError(),
 
                     "open_comport" => RequireArgs(args, 2, v =>
                         _wrapper.OpenComPort(Int(v[0]), Int(v[1]))),
-                    "close_comport"       => _wrapper.CloseComPort(),
+                    "close_comport" => _wrapper.CloseComPort(),
                     "getcurrent_baudrate" => _wrapper.GetCurrentBaudrate(),
                     "set_userwaitingtime" => RequireArgs(args, 1, v =>
                         _wrapper.SetUserWaitingTime(Int(v[0]))),
                     "get_userwaitingtime" => _wrapper.GetUserWaitingTime(),
-                    "open_ethernetport"  => RequireArgs(args, 4, v =>
+                    "open_ethernetport" => RequireArgs(args, 4, v =>
                         _wrapper.OpenEthernetPort(v[0], Int(v[1]), Int(v[2]),
                             v[3] == "1" || v[3].ToLower() == "true")),
                     "close_ethernetport" => _wrapper.CloseEthernetPort(),
                     "start_program" => RequireArgs(args, 1, v =>
                         _wrapper.StartProgram(Int(v[0]))),
-                    "stop_program"  => RequireArgs(args, 1, v =>
+                    "stop_program" => RequireArgs(args, 1, v =>
                         _wrapper.StopProgram(Int(v[0]))),
-                    "read_clock"  => RequireArgs(args, 1, v =>
+                    "read_clock" => RequireArgs(args, 1, v =>
                         _wrapper.ReadClock(Int(v[0]))),
                     "write_clock" => RequireArgs(args, 6, v =>
                         _wrapper.WriteClock(Int(v[0]), Int(v[1]), Int(v[2]),
                             Int(v[3]), Int(v[4]), Int(v[5]))),
 
-                    // READ_OBJECT_VALUE NetId Obj Index  (3 params, kein Length)
+                    // READ_OBJECT_VALUE NetId Obj Index  (3 params, no Length)
                     "read_object_value" => RequireArgs(args, 3, v =>
                         _wrapper.ReadObjectValue(Int(v[0]), Int(v[1]), Int(v[2]))),
 
@@ -107,7 +107,7 @@ namespace EasyComServer
                         ExecuteWriteObjectValue(
                             Int(v[0]), Int(v[1]), Int(v[2]), Int(v[3]), v[4])),
 
-                    "read_channel_yeartimeswitch"  => RequireArgs(args, 3, v =>
+                    "read_channel_yeartimeswitch" => RequireArgs(args, 3, v =>
                         _wrapper.ReadChannelYearTimeSwitch(
                             Int(v[0]), Int(v[1]), Int(v[2]))),
                     "write_channel_yeartimeswitch" => RequireArgs(args, 9, v =>
@@ -115,7 +115,7 @@ namespace EasyComServer
                             Int(v[0]), Int(v[1]), Int(v[2]),
                             Int(v[3]), Int(v[4]), Int(v[5]),
                             Int(v[6]), Int(v[7]), Int(v[8]))),
-                    "read_channel_7daytimeswitch"  => RequireArgs(args, 3, v =>
+                    "read_channel_7daytimeswitch" => RequireArgs(args, 3, v =>
                         _wrapper.ReadChannel7DayTimeSwitch(
                             Int(v[0]), Int(v[1]), Int(v[2]))),
                     "write_channel_7daytimeswitch" => RequireArgs(args, 9, v =>
@@ -125,7 +125,7 @@ namespace EasyComServer
                             Int(v[6]), Int(v[7]), Int(v[8]))),
                     "unlock_device" => RequireArgs(args, 2, v =>
                         _wrapper.UnlockDevice(Int(v[0]), v[1])),
-                    "lock_device"   => RequireArgs(args, 1, v =>
+                    "lock_device" => RequireArgs(args, 1, v =>
                         _wrapper.LockDevice(Int(v[0]))),
 
                     "mc_open_comport" => RequireArgs(args, 2, v =>
@@ -143,12 +143,12 @@ namespace EasyComServer
                             Int(v[3]), v[4] == "1" || v[4].ToLower() == "true")),
                     "mc_close_ethernetport" => RequireArgs(args, 1, v =>
                         _wrapper.McCloseEthernetPort(Int(v[0]))),
-                    "mc_closeall"      => _wrapper.McCloseAll(),
+                    "mc_closeall" => _wrapper.McCloseAll(),
                     "mc_start_program" => RequireArgs(args, 2, v =>
                         _wrapper.McStartProgram(Int(v[0]), Int(v[1]))),
-                    "mc_stop_program"  => RequireArgs(args, 2, v =>
+                    "mc_stop_program" => RequireArgs(args, 2, v =>
                         _wrapper.McStopProgram(Int(v[0]), Int(v[1]))),
-                    "mc_read_clock"  => RequireArgs(args, 2, v =>
+                    "mc_read_clock" => RequireArgs(args, 2, v =>
                         _wrapper.McReadClock(Int(v[0]), Int(v[1]))),
                     "mc_write_clock" => RequireArgs(args, 7, v =>
                         _wrapper.McWriteClock(Int(v[0]), Int(v[1]), Int(v[2]),
@@ -165,7 +165,7 @@ namespace EasyComServer
                             Int(v[0]), Int(v[1]), Int(v[2]),
                             Int(v[3]), Int(v[4]), v[5])),
 
-                    "mc_read_channel_yeartimeswitch"  => RequireArgs(args, 4, v =>
+                    "mc_read_channel_yeartimeswitch" => RequireArgs(args, 4, v =>
                         _wrapper.McReadChannelYearTimeSwitch(
                             Int(v[0]), Int(v[1]), Int(v[2]), Int(v[3]))),
                     "mc_write_channel_yeartimeswitch" => RequireArgs(args, 10, v =>
@@ -173,7 +173,7 @@ namespace EasyComServer
                             Int(v[0]), Int(v[1]), Int(v[2]), Int(v[3]),
                             Int(v[4]), Int(v[5]), Int(v[6]),
                             Int(v[7]), Int(v[8]), Int(v[9]))),
-                    "mc_read_channel_7daytimeswitch"  => RequireArgs(args, 4, v =>
+                    "mc_read_channel_7daytimeswitch" => RequireArgs(args, 4, v =>
                         _wrapper.McReadChannel7DayTimeSwitch(
                             Int(v[0]), Int(v[1]), Int(v[2]), Int(v[3]))),
                     "mc_write_channel_7daytimeswitch" => RequireArgs(args, 10, v =>
@@ -183,7 +183,7 @@ namespace EasyComServer
                             Int(v[7]), Int(v[8]), Int(v[9]))),
                     "mc_unlock_device" => RequireArgs(args, 3, v =>
                         _wrapper.McUnlockDevice(Int(v[0]), Int(v[1]), v[2])),
-                    "mc_lock_device"   => RequireArgs(args, 2, v =>
+                    "mc_lock_device" => RequireArgs(args, 2, v =>
                         _wrapper.McLockDevice(Int(v[0]), Int(v[1]))),
 
                     _ => $"ERROR Unknown command: '{parts[0]}'. Type HELP for a list."
@@ -203,7 +203,7 @@ namespace EasyComServer
             }
         }
 
-        // ── WRITE_OBJECT_VALUE with pulse ─────────────────────────────────────
+        // ── WRITE_OBJECT_VALUE with pulse support ─────────────────────────────
         //
         // Syntax:  WRITE_OBJECT_VALUE NetId Obj Index Length Data
         //          WRITE_OBJECT_VALUE NetId Obj Index Length Data1|Data2|Ms
@@ -221,7 +221,7 @@ namespace EasyComServer
 
             if (p.Length == 3)
             {
-                // Pulse-Modus: Data1|Data2|Ms
+                // Pulse mode: Data1|Data2|Ms
                 if (!byte.TryParse(p[0], out byte v1))
                     return $"ERROR Invalid data1: {p[0]}";
                 if (!byte.TryParse(p[1], out byte v2))
@@ -229,13 +229,13 @@ namespace EasyComServer
                 if (!int.TryParse(p[2], out int ms) || ms < 0)
                     return $"ERROR Invalid milliseconds: {p[2]}";
 
-                Logger.Log($"PULSE: schreibe v1={v1}...");
+                Logger.Log($"PULSE: writing v1={v1}...");
                 string r1 = _wrapper.WriteObjectValue(netId, obj, index, length, v1);
-                Logger.Log($"PULSE: v1={v1} Ergebnis={r1}");
+                Logger.Log($"PULSE: v1={v1} result={r1}");
                 if (r1.StartsWith("ERROR")) return r1;
 
-                // Busy-wait — haelt COM-Verbindung offen wie Pascal-Original
-                Logger.Log($"PULSE: warte {ms}ms...");
+                // Busy-wait — keeps the COM connection open, matching Pascal original
+                Logger.Log($"PULSE: waiting {ms}ms...");
                 var endTime = DateTime.Now.AddMilliseconds(ms);
                 while (DateTime.Now < endTime)
                 {
@@ -243,21 +243,21 @@ namespace EasyComServer
                     Thread.SpinWait(100);
                 }
 
-                // Direkt schreiben — kein EnsureComConnected
-                Logger.Log($"PULSE: schreibe v2={v2}...");
+                // Write second value directly — no EnsureComConnected
+                Logger.Log($"PULSE: writing v2={v2}...");
                 string r2 = _wrapper.WriteObjectValueDirect(netId, obj, index, length, v2);
-                Logger.Log($"PULSE: v2={v2} Ergebnis={r2}");
+                Logger.Log($"PULSE: v2={v2} result={r2}");
 
                 return r2.StartsWith("ERROR")
                     ? r2
                     : $"OK PULSE {v1}->{v2} ({ms}ms)\r\n{v2}";
             }
 
-            // Normaler Schreibbefehl
+            // Normal write
             if (!byte.TryParse(dataArg, out byte val))
                 return $"ERROR Invalid data: {dataArg}";
             string res = _wrapper.WriteObjectValue(netId, obj, index, length, val);
-            Logger.Log($"WRITE: val={val} Ergebnis={res}");
+            Logger.Log($"WRITE: val={val} result={res}");
             return res;
         }
 
@@ -277,12 +277,12 @@ namespace EasyComServer
                 if (!int.TryParse(p[2], out int ms) || ms < 0)
                     return $"ERROR Invalid milliseconds: {p[2]}";
 
-                Logger.Log($"MC PULSE: schreibe v1={v1}...");
+                Logger.Log($"MC PULSE: writing v1={v1}...");
                 string r1 = _wrapper.McWriteObjectValue(handle, netId, obj, index, length, v1);
-                Logger.Log($"MC PULSE: v1={v1} Ergebnis={r1}");
+                Logger.Log($"MC PULSE: v1={v1} result={r1}");
                 if (r1.StartsWith("ERROR")) return r1;
 
-                Logger.Log($"MC PULSE: warte {ms}ms...");
+                Logger.Log($"MC PULSE: waiting {ms}ms...");
                 var endTime = DateTime.Now.AddMilliseconds(ms);
                 while (DateTime.Now < endTime)
                 {
@@ -290,9 +290,9 @@ namespace EasyComServer
                     Thread.SpinWait(100);
                 }
 
-                Logger.Log($"MC PULSE: schreibe v2={v2}...");
+                Logger.Log($"MC PULSE: writing v2={v2}...");
                 string r2 = _wrapper.McWriteObjectValueDirect(handle, netId, obj, index, length, v2);
-                Logger.Log($"MC PULSE: v2={v2} Ergebnis={r2}");
+                Logger.Log($"MC PULSE: v2={v2} result={r2}");
 
                 return r2.StartsWith("ERROR")
                     ? r2
@@ -313,13 +313,13 @@ namespace EasyComServer
             string sub = Resolve(args[0], ShowSubCommands);
             return sub switch
             {
-                "server"        => BuildShowServer(),
-                "connections"   => _wrapper.GetOpenConnections(),
+                "server" => BuildShowServer(),
+                "connections" => _wrapper.GetOpenConnections(),
                 "configuration" => args.Length > 1
                     ? ShowConfigVar(args[1])
                     : "Usage: SHOW CONFIGURATION <variable>",
                 "tasks" => "HTTP and Telnet listener threads active.",
-                _       => $"ERROR Unknown SHOW subcommand: {args[0]}"
+                _ => $"ERROR Unknown SHOW subcommand: {args[0]}"
             };
         }
 
@@ -340,7 +340,7 @@ namespace EasyComServer
             sb.AppendLine($"COM idle timeout:       {_config.ComIdleTimeoutSeconds}s");
             sb.AppendLine($"Single-conn active:     {(_wrapper.IsSingleConnected ? "yes" : "no (auto-opens on next command)")}");
             sb.AppendLine($"Console Logging:        {(_config.ConsoleLogging ? "Enabled" : "Disabled")}");
-            sb.Append(    $"Open Connections:       {_wrapper.GetOpenConnections()}");
+            sb.Append($"Open Connections:       {_wrapper.GetOpenConnections()}");
             return sb.ToString().TrimEnd();
         }
 
@@ -348,11 +348,11 @@ namespace EasyComServer
             name.ToLower() switch
             {
                 "dll_path" or "dllpath" => $"dll_path={_config.DllPath}",
-                "com_idle_timeout"      => $"com_idle_timeout={_config.ComIdleTimeoutSeconds}",
-                "log_file"              => $"log_file={_config.LogFile}",
-                "console_logging"       => $"console_logging={_config.ConsoleLogging}",
-                "com_port"              => $"com_port={_instance.ComPort}",
-                "baud_rate"             => $"baud_rate={_instance.BaudRate}",
+                "com_idle_timeout" => $"com_idle_timeout={_config.ComIdleTimeoutSeconds}",
+                "log_file" => $"log_file={_config.LogFile}",
+                "console_logging" => $"console_logging={_config.ConsoleLogging}",
+                "com_port" => $"com_port={_instance.ComPort}",
+                "baud_rate" => $"baud_rate={_instance.BaudRate}",
                 _ => $"ERROR Unknown variable: {name}"
             };
 
@@ -363,24 +363,24 @@ namespace EasyComServer
             if (args.Length < 2) return "Usage: SET CONFIGURATION \"variable=value\"";
             string sub = Resolve(args[0], SetSubCommands);
             if (sub != "configuration") return $"ERROR Unknown SET subcommand: {args[0]}";
-            string kv  = string.Join(" ", args.Skip(1)).Trim('"', ' ');
-            int idx    = kv.IndexOf('=');
+            string kv = string.Join(" ", args.Skip(1)).Trim('"', ' ');
+            int idx = kv.IndexOf('=');
             if (idx < 0) return "ERROR Expected variable=value";
             string key = kv[..idx].Trim().ToLower();
             string val = kv[(idx + 1)..].Trim();
             return key switch
             {
-                "console_logging"  => SetConsoleLogging(val),
+                "console_logging" => SetConsoleLogging(val),
                 "com_idle_timeout" => SetComIdleTimeout(val),
-                "com_port"         => SetDefaultCom(val, null),
-                "baud_rate"        => SetDefaultCom(null, val),
+                "com_port" => SetDefaultCom(val, null),
+                "baud_rate" => SetDefaultCom(null, val),
                 _ => $"ERROR Unknown configuration variable: {key}"
             };
         }
 
         private string SetConsoleLogging(string val)
         {
-            bool on = val.Equals("true",    StringComparison.OrdinalIgnoreCase)
+            bool on = val.Equals("true", StringComparison.OrdinalIgnoreCase)
                    || val == "1"
                    || val.Equals("enabled", StringComparison.OrdinalIgnoreCase);
             _config.ConsoleLogging = on;
@@ -399,11 +399,11 @@ namespace EasyComServer
 
         private string SetDefaultCom(string? port, string? baud)
         {
-            int comPort  = port != null && int.TryParse(port, out int p)
+            int comPort = port != null && int.TryParse(port, out int p)
                 ? p : _instance.ComPort;
             int baudRate = baud != null && int.TryParse(baud, out int b)
                 ? b : _instance.BaudRate;
-            _instance.ComPort  = comPort;
+            _instance.ComPort = comPort;
             _instance.BaudRate = baudRate;
             _wrapper.SetDefaultCom(comPort, baudRate);
             return $"OK com_port={comPort} baud_rate={baudRate}";
@@ -414,9 +414,9 @@ namespace EasyComServer
         private static string BuildHelp() =>
             "EasyComServer Command Reference\n" +
             "================================\n" +
-            "Abkuerzung: eindeutiges Praefix reicht (SH SER = SHOW SERVER)\n" +
+            "Commands can be abbreviated to a unique prefix (SH SER = SHOW SERVER)\n" +
             "\n" +
-            "Verbindung:\n" +
+            "Connection:\n" +
             "  OPEN_COMPORT <port> <baud>\n" +
             "  CLOSE_COMPORT\n" +
             "  GETCURRENT_BAUDRATE\n" +
@@ -426,7 +426,7 @@ namespace EasyComServer
             "  CLOSE_ETHERNETPORT\n" +
             "  GETLASTSYSTEMERROR\n" +
             "\n" +
-            "Geraet:\n" +
+            "Device:\n" +
             "  START_PROGRAM <netid>\n" +
             "  STOP_PROGRAM <netid>\n" +
             "  READ_CLOCK <netid>\n" +
@@ -434,21 +434,21 @@ namespace EasyComServer
             "  UNLOCK_DEVICE <netid> <password>\n" +
             "  LOCK_DEVICE <netid>\n" +
             "\n" +
-            "Prozessabbild:\n" +
+            "Process image:\n" +
             "  READ_OBJECT_VALUE <netid> <obj> <index>\n" +
             "  WRITE_OBJECT_VALUE <netid> <obj> <index> <length> <data>\n" +
-            "  WRITE_OBJECT_VALUE <netid> <obj> <index> <length> <d1>|<d2>|<ms>   (Puls)\n" +
-            "    Beispiel: WRITE_OBJECT_VALUE 1 4 1 1 1|0|10\n" +
-            "    Schreibt 1, wartet 10ms, schreibt 0\n" +
+            "  WRITE_OBJECT_VALUE <netid> <obj> <index> <length> <d1>|<d2>|<ms>   (Pulse)\n" +
+            "    Example: WRITE_OBJECT_VALUE 1 4 1 1 1|0|10\n" +
+            "    Writes 1, waits 10ms, writes 0\n" +
             "\n" +
-            "Zeitschalter:\n" +
+            "Time switches:\n" +
             "  READ_CHANNEL_YEARTIMESWITCH  <netid> <index> <channel>\n" +
             "  WRITE_CHANNEL_YEARTIMESWITCH <netid> <index> <channel> <onY> <onM> <onD> <offY> <offM> <offD>\n" +
             "  READ_CHANNEL_7DAYTIMESWITCH  <netid> <index> <channel>\n" +
             "  WRITE_CHANNEL_7DAYTIMESWITCH <netid> <index> <channel> <dy1> <dy2> <onH> <onM> <offH> <offM>\n" +
             "\n" +
-            "MC_ Mehrfachverbindung:\n" +
-            "  MC_OPEN_COMPORT <port> <baud>                      -> liefert HANDLE\n" +
+            "MC_ multi-connection:\n" +
+            "  MC_OPEN_COMPORT <port> <baud>                      -> returns HANDLE\n" +
             "  MC_CLOSE_COMPORT <handle>\n" +
             "  MC_CLOSEALL\n" +
             "  MC_OPEN_ETHERNETPORT <handle> <ip> <port> <baud> <nobaudscan>\n" +
@@ -504,8 +504,8 @@ namespace EasyComServer
 
         private static string[] SplitArgs(string line)
         {
-            var args     = new List<string>();
-            var current  = new StringBuilder();
+            var args = new List<string>();
+            var current = new StringBuilder();
             bool inQuote = false;
             foreach (char c in line)
             {
@@ -523,7 +523,7 @@ namespace EasyComServer
 
     public class AmbiguousAbbreviationException : Exception
     {
-        public string Prefix  { get; }
+        public string Prefix { get; }
         public string Matches { get; }
         public AmbiguousAbbreviationException(string prefix, string matches)
             : base($"Ambiguous: '{prefix}' matches {matches}")
