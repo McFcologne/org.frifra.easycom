@@ -8,6 +8,7 @@ OutputDir=.
 OutputBaseFilename=EasyComServer_Setup
 Compression=lzma
 SolidCompression=yes
+SetupIconFile=..\easycom.ico
 PrivilegesRequired=admin
 
 [Files]
