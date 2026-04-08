@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Read(///Mac/Home/Documents/org.frifra.easycom/EasyComServer/wwwroot/$\\(pwd\\)/lib/**)"
+      "Read(///Mac/Home/Documents/org.frifra.easycom/EasyComServer/wwwroot/$\\(pwd\\)/lib/**)",
+      "Read(///Mac/Home/Documents/**)",
+      "Bash(dotnet build:*)",
+      "Bash(wc -l EasyComServer/*.cs)"
     ]
   }
 }

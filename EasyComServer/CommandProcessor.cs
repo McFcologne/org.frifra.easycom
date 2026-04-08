@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
+using System.Threading.Tasks;
 
 namespace EasyComServer
 {
@@ -237,23 +237,28 @@ namespace EasyComServer
                 Logger.Log($"PULSE: v1={v1} result={r1}");
                 if (r1.StartsWith("ERROR")) return r1;
 
-                // Busy-wait — keeps the COM connection open, matching Pascal original
-                Logger.Log($"PULSE: waiting {ms}ms...");
-                var endTime = DateTime.Now.AddMilliseconds(ms);
-                while (DateTime.Now < endTime)
+                // Schedule v2 asynchronously so the caller is not blocked during the wait.
+                // Other requests may proceed in the meantime; serial exclusivity is
+                // maintained by the _lock inside EasyComWrapper.
+                Logger.Log($"PULSE: scheduling v2={v2} in {ms}ms (async)...");
+                _ = Task.Run(async () =>
                 {
-                    _wrapper.KeepAlive();
-                    Thread.SpinWait(100);
-                }
+                    // Keep the COM connection alive in chunks to prevent idle-close.
+                    var deadline = DateTime.Now.AddMilliseconds(ms);
+                    while (true)
+                    {
+                        int remaining = Math.Max(0,
+                            (int)(deadline - DateTime.Now).TotalMilliseconds);
+                        if (remaining == 0) break;
+                        await Task.Delay(Math.Min(5_000, remaining));
+                        _wrapper.KeepAlive();
+                    }
+                    Logger.Log($"PULSE: writing v2={v2}...");
+                    string r2 = _wrapper.WriteObjectValue(netId, obj, index, length, v2);
+                    Logger.Log($"PULSE: v2={v2} result={r2}");
+                });
 
-                // Write second value directly — no EnsureComConnected
-                Logger.Log($"PULSE: writing v2={v2}...");
-                string r2 = _wrapper.WriteObjectValueDirect(netId, obj, index, length, v2);
-                Logger.Log($"PULSE: v2={v2} result={r2}");
-
-                return r2.StartsWith("ERROR")
-                    ? r2
-                    : $"OK PULSE {v1}->{v2} ({ms}ms)\r\n{v2}";
+                return $"OK PULSE {v1}->{v2} ({ms}ms) async";
             }
 
             // Normal write
@@ -285,21 +290,26 @@ namespace EasyComServer
                 Logger.Log($"MC PULSE: v1={v1} result={r1}");
                 if (r1.StartsWith("ERROR")) return r1;
 
-                Logger.Log($"MC PULSE: waiting {ms}ms...");
-                var endTime = DateTime.Now.AddMilliseconds(ms);
-                while (DateTime.Now < endTime)
+                Logger.Log($"MC PULSE: scheduling v2={v2} in {ms}ms (async)...");
+                int capturedHandle = handle;
+                _ = Task.Run(async () =>
                 {
-                    _wrapper.KeepAlive();
-                    Thread.SpinWait(100);
-                }
+                    var deadline = DateTime.Now.AddMilliseconds(ms);
+                    while (true)
+                    {
+                        int remaining = Math.Max(0,
+                            (int)(deadline - DateTime.Now).TotalMilliseconds);
+                        if (remaining == 0) break;
+                        await Task.Delay(Math.Min(5_000, remaining));
+                        _wrapper.KeepAlive();
+                    }
+                    Logger.Log($"MC PULSE: writing v2={v2}...");
+                    string r2 = _wrapper.McWriteObjectValue(
+                        capturedHandle, netId, obj, index, length, v2);
+                    Logger.Log($"MC PULSE: v2={v2} result={r2}");
+                });
 
-                Logger.Log($"MC PULSE: writing v2={v2}...");
-                string r2 = _wrapper.McWriteObjectValueDirect(handle, netId, obj, index, length, v2);
-                Logger.Log($"MC PULSE: v2={v2} result={r2}");
-
-                return r2.StartsWith("ERROR")
-                    ? r2
-                    : $"OK PULSE {v1}->{v2} ({ms}ms)\r\n{v2}";
+                return $"OK PULSE {v1}->{v2} ({ms}ms) async";
             }
 
             if (!byte.TryParse(dataArg, out byte val))
