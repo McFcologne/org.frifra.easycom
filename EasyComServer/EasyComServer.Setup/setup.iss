@@ -154,7 +154,7 @@ begin
   PortPage.Add('COM port (1=COM1, 2=COM2 ...):', False);
   PortPage.Add('Baud rate:', False);
   PortPage.Values[0] := '8083';
-  PortPage.Values[1] := '8023';
+  PortPage.Values[1] := '23';
   PortPage.Values[2] := '1';
   PortPage.Values[3] := '9600';
 
