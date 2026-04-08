@@ -104,7 +104,7 @@ namespace EasyComServer
             Task.Run(async () =>
             {
                 var instWrapper = _wrappers.TryGetValue(inst.Name, out var w) ? w : _wrapper;
-                var cmdProcessor = new CommandProcessor(instWrapper, _config, inst, _startTime, _dllVersion);
+                var cmdProcessor = new CommandProcessor(instWrapper, _config, inst, _startTime, _dllVersion, _wrappers);
                 while (!_cts.Token.IsCancellationRequested)
                 {
                     try
@@ -295,7 +295,7 @@ namespace EasyComServer
             Task.Run(async () =>
             {
                 var instWrapper = _wrappers.TryGetValue(inst.Name, out var w) ? w : _wrapper;
-                var cmdProcessor = new CommandProcessor(instWrapper, _config, inst, _startTime, _dllVersion);
+                var cmdProcessor = new CommandProcessor(instWrapper, _config, inst, _startTime, _dllVersion, _wrappers);
                 while (!_cts.Token.IsCancellationRequested)
                 {
                     try

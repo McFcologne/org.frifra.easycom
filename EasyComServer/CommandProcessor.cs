@@ -9,6 +9,7 @@ namespace EasyComServer
     public class CommandProcessor
     {
         private readonly EasyComWrapper _wrapper;
+        private readonly IReadOnlyDictionary<string, EasyComWrapper> _allWrappers;
         private readonly ServerConfig _config;
         private readonly InstanceConfig _instance;
         private readonly DateTime _startTime;
@@ -43,9 +44,11 @@ namespace EasyComServer
         private static readonly string[] SetSubCommands = { "configuration" };
 
         public CommandProcessor(EasyComWrapper wrapper, ServerConfig config,
-            InstanceConfig instance, DateTime startTime, string dllVersion)
+            InstanceConfig instance, DateTime startTime, string dllVersion,
+            IReadOnlyDictionary<string, EasyComWrapper>? allWrappers = null)
         {
             _wrapper = wrapper;
+            _allWrappers = allWrappers ?? new Dictionary<string, EasyComWrapper> { [instance.Name] = wrapper };
             _config = config;
             _instance = instance;
             _startTime = startTime;
@@ -306,6 +309,21 @@ namespace EasyComServer
 
         // ── SHOW ──────────────────────────────────────────────────────────────
 
+        private string GetAllConnections()
+        {
+            var sb = new StringBuilder();
+            foreach (var kv in _allWrappers)
+            {
+                string conns = kv.Value.GetOpenConnections();
+                if (conns == "none")
+                    sb.AppendLine($"[{kv.Key}] none");
+                else
+                    foreach (var line in conns.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                        sb.AppendLine($"[{kv.Key}] {line.Trim()}");
+            }
+            return sb.Length == 0 ? "none" : sb.ToString().TrimEnd();
+        }
+
         private string ExecuteShow(string[] args)
         {
             if (args.Length == 0)
@@ -314,7 +332,7 @@ namespace EasyComServer
             return sub switch
             {
                 "server" => BuildShowServer(),
-                "connections" => _wrapper.GetOpenConnections(),
+                "connections" => GetAllConnections(),
                 "configuration" => args.Length > 1
                     ? ShowConfigVar(args[1])
                     : "Usage: SHOW CONFIGURATION <variable>",
