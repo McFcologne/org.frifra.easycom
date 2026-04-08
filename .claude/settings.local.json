@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(///Mac/Home/Documents/org.frifra.easycom/EasyComServer/wwwroot/$\\(pwd\\)/lib/**)"
+    ]
+  }
+}

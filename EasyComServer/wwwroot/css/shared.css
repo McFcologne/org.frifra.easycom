@@ -94,6 +94,23 @@ html, body {
   min-width: 3.2rem; /* wide enough for "offline" — prevents dot from jumping */
 }
 
+/* ── YAML download link (swagger page) ──────────────────────────────────── */
+.yaml-link {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .08em;
+  color: var(--dim);
+  text-decoration: none;
+  white-space: nowrap;
+  padding-left: .75rem;
+  border-left: 1px solid var(--border);
+  transition: color .15s;
+}
+
+.yaml-link:hover {
+  color: var(--green);
+}
+
 /* ── Navigation links ────────────────────────────────────────────────────── */
 .nav-links {
   display: flex;
