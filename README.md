@@ -60,7 +60,7 @@ to the output directory on each build.
 com_port    = 1       ; ← COM port of the EASY device
 baud_rate   = 9600    ; ← baud rate
 http_port   = 8083
-telnet_port = 8023
+telnet_port = 23
 basic_auth  = false   ; true = enable password protection
 ```
 
@@ -120,7 +120,39 @@ http://localhost:8083/
 
 ---
 
-## HTTP API
+## REST API
+
+The server exposes a versioned REST API at `/api/v1/` with JSON responses.
+
+```
+http://SERVER:PORT/api/v1/system
+http://SERVER:PORT/api/v1/connection
+http://SERVER:PORT/api/v1/device/{netId}/clock
+http://SERVER:PORT/api/v1/device/{netId}/objects/{obj}/{index}
+```
+
+All responses follow a uniform envelope:
+
+```json
+{ "ok": true,  "result": "..." }
+{ "ok": false, "error":  "..." }
+```
+
+The full API specification (OpenAPI 3.0) is served at:
+
+```
+http://SERVER:PORT/openapi.yaml
+```
+
+An interactive Swagger UI test page is available at:
+
+```
+http://localhost:8083/swagger.html
+```
+
+---
+
+## HTTP API (legacy)
 
 ```
 http://SERVER:PORT/easy.cmd?COMMAND
@@ -176,7 +208,27 @@ EasyComServer\
 |---|---|---|
 | 0.0.1 | 2009-07-21 | Initial prototype — Windows Service implementation for Windows Server 2003 |
 | 1.0.0 | 2009-08-05 | First stable release of the Delphi-based server application |
-| 2.0.0 | 2026-04-08 | Full rewrite in C# (.NET 8) — migrated from legacy Delphi codebase to Visual Studio; added HTTP/Telnet gateway, multi-instance support, web console and Basic Auth |
+| 2.0.0 | 2026-04-07 | Full rewrite in C# (.NET 8) — migrated from legacy Delphi codebase to Visual Studio; added HTTP/Telnet gateway, multi-instance support, web console and Basic Auth |
+| 2.1.0 | 2026-04-08 | Added RESTful API (`/api/v1`), OpenAPI 3.0 specification (`openapi.yaml`), interactive Swagger UI test page (`/swagger.html`) |
+| 2.1.1 | 2026-04-09 | SHA-256 password hashing for Basic Auth; MIT License added |
+
+---
+
+## License
+
+This project is released under the **[MIT License](LICENSE)**.  
+You are free to use, modify and distribute it — as long as the copyright notice is retained.
+
+### Third-Party Components
+
+| Component | Version | License |
+|---|---|---|
+| [Microsoft.Extensions.Hosting.WindowsServices](https://www.nuget.org/packages/Microsoft.Extensions.Hosting.WindowsServices) | 8.0.0 | [MIT](https://licenses.nuget.org/MIT) |
+| [Serilog](https://serilog.net/) | 4.1.0 | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| [Serilog.Sinks.File](https://github.com/serilog/serilog-sinks-file) | 5.0.0 | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| [marked.js](https://marked.js.org/) | — | [MIT](https://github.com/markedjs/marked/blob/master/LICENSE.md) |
+| [Swagger UI](https://swagger.io/tools/swagger-ui/) | — | [Apache 2.0](https://github.com/swagger-api/swagger-ui/blob/master/LICENSE) |
+| [github-markdown-css](https://github.com/sindresorhus/github-markdown-css) | — | [MIT](https://github.com/sindresorhus/github-markdown-css/blob/main/license) |
 
 ---
 

@@ -1,0 +1,643 @@
+openapi: 3.0.3
+info:
+  title: EasyComServer REST API
+  description: |
+    RESTful interface for the EasyComServer — a gateway for Moeller/Eaton EASY PLC devices.
+
+    All responses are JSON objects with an `ok` boolean field.
+    On success: `{ "ok": true, "result": "..." }`
+    On error:   `{ "ok": false, "error": "..." }`
+
+    The REST API is served on the same port as the existing HTTP interface.
+    All existing endpoints (`/easy.cmd`, `/index.html`, …) are unchanged.
+  version: "1.0.0"
+  contact:
+    name: Michael Fritzsche
+  license:
+    name: Copyright 2009-2026 Michael Fritzsche
+
+servers:
+  - url: http://localhost:8083/api/v1
+    description: Default local instance (port from easycom.ini)
+
+security:
+  - basicAuth: []
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: Optional — only enforced when basic_auth=true in easycom.ini
+
+  schemas:
+    OkResponse:
+      type: object
+      required: [ok, result]
+      properties:
+        ok:
+          type: boolean
+          example: true
+        result:
+          type: string
+          description: Plain-text response from the device or server
+
+    ErrorResponse:
+      type: object
+      required: [ok, error]
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable error description
+
+    ClockBody:
+      type: object
+      required: [year, month, day, hour, minute]
+      properties:
+        year:
+          type: integer
+          example: 2026
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 4
+        day:
+          type: integer
+          minimum: 1
+          maximum: 31
+          example: 8
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+          example: 14
+        minute:
+          type: integer
+          minimum: 0
+          maximum: 59
+          example: 30
+
+    OpenComBody:
+      type: object
+      required: [port, baud]
+      properties:
+        port:
+          type: integer
+          description: COM port number (e.g. 1 for COM1)
+          example: 1
+        baud:
+          type: integer
+          description: Baud rate
+          example: 9600
+
+    OpenEthernetBody:
+      type: object
+      required: [ip, port, baud]
+      properties:
+        ip:
+          type: string
+          description: IP address or hostname of the EASY device
+          example: "192.168.1.100"
+        port:
+          type: integer
+          description: TCP port of the EASY device
+          example: 121
+        baud:
+          type: integer
+          description: Virtual baud rate
+          example: 9600
+        noBaudScan:
+          type: boolean
+          description: Skip automatic baud rate detection
+          default: false
+
+    WaitingTimeBody:
+      type: object
+      required: [ms]
+      properties:
+        ms:
+          type: integer
+          description: Waiting time in milliseconds
+          example: 1000
+
+    UnlockBody:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+          description: Device password
+          example: "easypass"
+
+    WriteObjectBody:
+      type: object
+      required: [length]
+      properties:
+        length:
+          type: integer
+          description: Data length in bytes (typically 1)
+          example: 1
+        value:
+          type: integer
+          description: Value to write (0–255). Required unless pulse is specified.
+          example: 1
+        pulse:
+          type: object
+          description: >
+            Pulse mode: write `on`, wait `ms` milliseconds, then write `off`.
+            Mutually exclusive with `value`.
+          required: [on, off, ms]
+          properties:
+            on:
+              type: integer
+              description: Value to write first
+              example: 1
+            off:
+              type: integer
+              description: Value to write after the delay
+              example: 0
+            ms:
+              type: integer
+              description: Delay between on and off in milliseconds
+              example: 500
+
+    WriteYearTimeSwitchBody:
+      type: object
+      required: [onYear, onMonth, onDay, offYear, offMonth, offDay]
+      properties:
+        onYear:
+          type: integer
+          example: 2026
+        onMonth:
+          type: integer
+          example: 3
+        onDay:
+          type: integer
+          example: 1
+        offYear:
+          type: integer
+          example: 2026
+        offMonth:
+          type: integer
+          example: 10
+        offDay:
+          type: integer
+          example: 31
+
+    Write7DayTimeSwitchBody:
+      type: object
+      required: [dayMask1, dayMask2, onHour, onMinute, offHour, offMinute]
+      properties:
+        dayMask1:
+          type: integer
+          description: Day-of-week bitmask (byte 1), device-specific encoding
+          example: 62
+        dayMask2:
+          type: integer
+          description: Day-of-week bitmask (byte 2), device-specific encoding
+          example: 0
+        onHour:
+          type: integer
+          minimum: 0
+          maximum: 23
+          example: 7
+        onMinute:
+          type: integer
+          minimum: 0
+          maximum: 59
+          example: 0
+        offHour:
+          type: integer
+          minimum: 0
+          maximum: 23
+          example: 22
+        offMinute:
+          type: integer
+          minimum: 0
+          maximum: 59
+          example: 0
+
+  responses:
+    Ok:
+      description: Success
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/OkResponse'
+    BadRequest:
+      description: Missing or invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Unknown endpoint or resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+# ── Paths ────────────────────────────────────────────────────────────────────
+
+paths:
+
+  # ── System ────────────────────────────────────────────────────────────────
+
+  /system:
+    get:
+      summary: Server status
+      description: Returns uptime, DLL version, port configuration, and open connections.
+      operationId: getSystem
+      tags: [System]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+
+  /system/error:
+    get:
+      summary: Last system error
+      description: Returns the last error code from the EASY_COM.dll.
+      operationId: getLastSystemError
+      tags: [System]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+
+  /system/connections:
+    get:
+      summary: Open connections
+      description: Lists all currently open COM/Ethernet connections across all instances.
+      operationId: getSystemConnections
+      tags: [System]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+
+  # ── Connection ────────────────────────────────────────────────────────────
+
+  /connection:
+    get:
+      summary: Connection overview
+      description: Same as /system/connections — lists open connections for this instance.
+      operationId: getConnection
+      tags: [Connection]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+
+  /connection/baudrate:
+    get:
+      summary: Current baud rate
+      description: Returns the baud rate currently negotiated on the active connection.
+      operationId: getBaudrate
+      tags: [Connection]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+
+  /connection/waitingtime:
+    get:
+      summary: Get user waiting time
+      description: Returns the configured inter-command waiting time in milliseconds.
+      operationId: getWaitingTime
+      tags: [Connection]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+    put:
+      summary: Set user waiting time
+      operationId: setWaitingTime
+      tags: [Connection]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WaitingTimeBody'
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+  /connection/com:
+    post:
+      summary: Open COM port
+      description: Opens a serial COM port connection to an EASY device.
+      operationId: openCom
+      tags: [Connection]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenComBody'
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+    delete:
+      summary: Close COM port
+      description: Closes the active serial COM port connection.
+      operationId: closeCom
+      tags: [Connection]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+
+  /connection/ethernet:
+    post:
+      summary: Open Ethernet port
+      description: Opens a TCP connection to an EASY device over Ethernet.
+      operationId: openEthernet
+      tags: [Connection]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenEthernetBody'
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+    delete:
+      summary: Close Ethernet port
+      description: Closes the active Ethernet connection.
+      operationId: closeEthernet
+      tags: [Connection]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+
+  # ── Device ────────────────────────────────────────────────────────────────
+
+  /device/{netId}/clock:
+    parameters:
+      - name: netId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Network node ID (0 = local, 1–8 = network station)
+        example: 1
+    get:
+      summary: Read device clock
+      operationId: readClock
+      tags: [Device]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+    put:
+      summary: Write device clock
+      operationId: writeClock
+      tags: [Device]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClockBody'
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+  /device/{netId}/start:
+    parameters:
+      - name: netId
+        in: path
+        required: true
+        schema:
+          type: integer
+        example: 1
+    post:
+      summary: Start PLC program
+      operationId: startProgram
+      tags: [Device]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+  /device/{netId}/stop:
+    parameters:
+      - name: netId
+        in: path
+        required: true
+        schema:
+          type: integer
+        example: 1
+    post:
+      summary: Stop PLC program
+      operationId: stopProgram
+      tags: [Device]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+  /device/{netId}/unlock:
+    parameters:
+      - name: netId
+        in: path
+        required: true
+        schema:
+          type: integer
+        example: 1
+    post:
+      summary: Unlock device
+      description: Unlocks the device for writing operations using the device password.
+      operationId: unlockDevice
+      tags: [Device]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnlockBody'
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+  /device/{netId}/lock:
+    parameters:
+      - name: netId
+        in: path
+        required: true
+        schema:
+          type: integer
+        example: 1
+    post:
+      summary: Lock device
+      description: Locks the device against write operations.
+      operationId: lockDevice
+      tags: [Device]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+  # ── Objects ───────────────────────────────────────────────────────────────
+
+  /device/{netId}/objects/{obj}/{index}:
+    parameters:
+      - name: netId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Network node ID
+        example: 1
+      - name: obj
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Object type (e.g. 4 = output relay Q, 2 = input I)
+        example: 4
+      - name: index
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Object index (1-based)
+        example: 1
+    get:
+      summary: Read object value
+      description: Reads a single process-image object (input, output, marker, etc.) from the device.
+      operationId: readObjectValue
+      tags: [Objects]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+    put:
+      summary: Write object value
+      description: |
+        Writes a value to a process-image object.
+
+        **Normal mode:** provide `length` and `value`.
+
+        **Pulse mode:** provide `length` and a `pulse` object with `on`, `off`, and `ms`.
+        The device will be set to `on`, held for `ms` milliseconds, then set to `off`.
+        Useful for toggling relay outputs.
+      operationId: writeObjectValue
+      tags: [Objects]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WriteObjectBody'
+            examples:
+              normal:
+                summary: Turn output Q1 ON
+                value: { "length": 1, "value": 1 }
+              pulse:
+                summary: Pulse output Q1 for 500 ms
+                value: { "length": 1, "pulse": { "on": 1, "off": 0, "ms": 500 } }
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+  # ── Time switches ─────────────────────────────────────────────────────────
+
+  /device/{netId}/yeartimeswitch/{switchIdx}/{channel}:
+    parameters:
+      - name: netId
+        in: path
+        required: true
+        schema:
+          type: integer
+        example: 1
+      - name: switchIdx
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Year time switch index (device-dependent)
+        example: 1
+      - name: channel
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Channel number within the time switch
+        example: 1
+    get:
+      summary: Read year time switch channel
+      operationId: readYearTimeSwitch
+      tags: [Time Switches]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+    put:
+      summary: Write year time switch channel
+      operationId: writeYearTimeSwitch
+      tags: [Time Switches]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WriteYearTimeSwitchBody'
+            example:
+              onYear: 2026
+              onMonth: 3
+              onDay: 1
+              offYear: 2026
+              offMonth: 10
+              offDay: 31
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+  /device/{netId}/7daytimeswitch/{switchIdx}/{channel}:
+    parameters:
+      - name: netId
+        in: path
+        required: true
+        schema:
+          type: integer
+        example: 1
+      - name: switchIdx
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 7-day time switch index (device-dependent)
+        example: 1
+      - name: channel
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Channel number within the time switch
+        example: 1
+    get:
+      summary: Read 7-day time switch channel
+      operationId: read7DayTimeSwitch
+      tags: [Time Switches]
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+    put:
+      summary: Write 7-day time switch channel
+      operationId: write7DayTimeSwitch
+      tags: [Time Switches]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Write7DayTimeSwitchBody'
+            example:
+              dayMask1: 62
+              dayMask2: 0
+              onHour: 7
+              onMinute: 0
+              offHour: 22
+              offMinute: 0
+      responses:
+        "200": { $ref: '#/components/responses/Ok' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+tags:
+  - name: System
+    description: Server status and diagnostics
+  - name: Connection
+    description: Manage COM port and Ethernet connections to EASY devices
+  - name: Device
+    description: Device-level operations (clock, program control, lock/unlock)
+  - name: Objects
+    description: Read and write PLC inputs, outputs, markers, and other objects
+  - name: Time Switches
+    description: Configure year and 7-day time switch schedules

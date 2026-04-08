@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
+using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 
 namespace EasyComServer
 {
@@ -43,6 +44,8 @@ namespace EasyComServer
             { "server", "configuration", "tasks", "connections" };
         private static readonly string[] SetSubCommands = { "configuration" };
 
+        private static int _reqCounter = 0;
+
         public CommandProcessor(EasyComWrapper wrapper, ServerConfig config,
             InstanceConfig instance, DateTime startTime, string dllVersion,
             IReadOnlyDictionary<string, EasyComWrapper>? allWrappers = null)
@@ -57,13 +60,14 @@ namespace EasyComServer
 
         public string Execute(string commandLine)
         {
+            string reqId = $"{System.Threading.Interlocked.Increment(ref _reqCounter) & 0xFFFF:x4}";
             try
             {
                 if (string.IsNullOrWhiteSpace(commandLine)) return "";
                 var parts = SplitArgs(commandLine);
                 if (parts.Length == 0) return "";
 
-                Logger.Log($"CMD: {commandLine}");
+                Logger.Log($"[{reqId}] CMD: {commandLine}");
 
                 // Apply the instance-specific COM port before auto-connect kicks in
                 if (_instance.HasComConfig)
@@ -107,7 +111,7 @@ namespace EasyComServer
 
                     // WRITE_OBJECT_VALUE NetId Obj Index Length Data[|Data2|Ms]
                     "write_object_value" => RequireArgs(args, 5, v =>
-                        ExecuteWriteObjectValue(
+                        ExecuteWriteObjectValue(reqId,
                             Int(v[0]), Int(v[1]), Int(v[2]), Int(v[3]), v[4])),
 
                     "read_channel_yeartimeswitch" => RequireArgs(args, 3, v =>
@@ -164,7 +168,7 @@ namespace EasyComServer
 
                     // MC_WRITE_OBJECT_VALUE Handle NetId Obj Index Length Data[|Data2|Ms]
                     "mc_write_object_value" => RequireArgs(args, 6, v =>
-                        ExecuteMcWriteObjectValue(
+                        ExecuteMcWriteObjectValue(reqId,
                             Int(v[0]), Int(v[1]), Int(v[2]),
                             Int(v[3]), Int(v[4]), v[5])),
 
@@ -192,7 +196,7 @@ namespace EasyComServer
                     _ => $"ERROR Unknown command: '{parts[0]}'. Type HELP for a list."
                 };
 
-                Logger.Log($"RESULT: {result.Split('\n')[0]}");
+                Logger.Log($"[{reqId}] RESULT: {result.Split('\n')[0]}");
                 return result;
             }
             catch (AmbiguousAbbreviationException ex)
@@ -201,7 +205,7 @@ namespace EasyComServer
             }
             catch (Exception ex)
             {
-                Logger.Log($"EXCEPTION in Execute: {ex.Message}");
+                Logger.Log($"[{reqId}] EXCEPTION in Execute: {ex.Message}");
                 return $"ERROR {ex.Message}";
             }
         }
@@ -215,10 +219,10 @@ namespace EasyComServer
         //   params[0]=NetId, params[1]=Obj, params[2]=Index,
         //   params[3]=Length, params[4]=Data[|Data2|Ms]
 
-        private string ExecuteWriteObjectValue(int netId, int obj, int index,
+        private string ExecuteWriteObjectValue(string reqId, int netId, int obj, int index,
             int length, string dataArg)
         {
-            Logger.Log($"WRITE_OBJECT_VALUE: netId={netId} obj={obj} index={index} length={length} dataArg={dataArg}");
+            Logger.Log($"[{reqId}] WRITE_OBJECT_VALUE: netId={netId} obj={obj} index={index} length={length} dataArg={dataArg}");
 
             var p = dataArg.Split('|');
 
@@ -232,42 +236,47 @@ namespace EasyComServer
                 if (!int.TryParse(p[2], out int ms) || ms < 0)
                     return $"ERROR Invalid milliseconds: {p[2]}";
 
-                Logger.Log($"PULSE: writing v1={v1}...");
+                Logger.Log($"[{reqId}] PULSE: writing v1={v1}...");
                 string r1 = _wrapper.WriteObjectValue(netId, obj, index, length, v1);
-                Logger.Log($"PULSE: v1={v1} result={r1}");
+                Logger.Log($"[{reqId}] PULSE: v1={v1} result={r1}");
                 if (r1.StartsWith("ERROR")) return r1;
 
-                // Busy-wait — keeps the COM connection open, matching Pascal original
-                Logger.Log($"PULSE: waiting {ms}ms...");
-                var endTime = DateTime.Now.AddMilliseconds(ms);
-                while (DateTime.Now < endTime)
+                // Schedule v2 asynchronously so the caller is not blocked during the wait.
+                // Other requests may proceed in the meantime; serial exclusivity is
+                // maintained by the _lock inside EasyComWrapper.
+                Logger.Log($"[{reqId}] PULSE: scheduling v2={v2} in {ms}ms (async)...");
+                _ = Task.Run(async () =>
                 {
-                    _wrapper.KeepAlive();
-                    Thread.SpinWait(100);
-                }
+                    // Keep the COM connection alive in chunks to prevent idle-close.
+                    var deadline = DateTime.Now.AddMilliseconds(ms);
+                    while (true)
+                    {
+                        int remaining = Math.Max(0,
+                            (int)(deadline - DateTime.Now).TotalMilliseconds);
+                        if (remaining == 0) break;
+                        await Task.Delay(Math.Min(5_000, remaining));
+                        _wrapper.KeepAlive();
+                    }
+                    Logger.Log($"[{reqId}] PULSE: writing v2={v2}...");
+                    string r2 = _wrapper.WriteObjectValue(netId, obj, index, length, v2);
+                    Logger.Log($"[{reqId}] PULSE: v2={v2} result={r2}");
+                });
 
-                // Write second value directly — no EnsureComConnected
-                Logger.Log($"PULSE: writing v2={v2}...");
-                string r2 = _wrapper.WriteObjectValueDirect(netId, obj, index, length, v2);
-                Logger.Log($"PULSE: v2={v2} result={r2}");
-
-                return r2.StartsWith("ERROR")
-                    ? r2
-                    : $"OK PULSE {v1}->{v2} ({ms}ms)\r\n{v2}";
+                return $"OK PULSE {v1}->{v2} ({ms}ms) async";
             }
 
             // Normal write
             if (!byte.TryParse(dataArg, out byte val))
                 return $"ERROR Invalid data: {dataArg}";
             string res = _wrapper.WriteObjectValue(netId, obj, index, length, val);
-            Logger.Log($"WRITE: val={val} result={res}");
+            Logger.Log($"[{reqId}] WRITE: val={val} result={res}");
             return res;
         }
 
-        private string ExecuteMcWriteObjectValue(int handle, int netId, int obj,
+        private string ExecuteMcWriteObjectValue(string reqId, int handle, int netId, int obj,
             int index, int length, string dataArg)
         {
-            Logger.Log($"MC_WRITE_OBJECT_VALUE: handle={handle} netId={netId} obj={obj} index={index} length={length} dataArg={dataArg}");
+            Logger.Log($"[{reqId}] MC_WRITE_OBJECT_VALUE: handle={handle} netId={netId} obj={obj} index={index} length={length} dataArg={dataArg}");
 
             var p = dataArg.Split('|');
 
@@ -280,26 +289,31 @@ namespace EasyComServer
                 if (!int.TryParse(p[2], out int ms) || ms < 0)
                     return $"ERROR Invalid milliseconds: {p[2]}";
 
-                Logger.Log($"MC PULSE: writing v1={v1}...");
+                Logger.Log($"[{reqId}] MC PULSE: writing v1={v1}...");
                 string r1 = _wrapper.McWriteObjectValue(handle, netId, obj, index, length, v1);
-                Logger.Log($"MC PULSE: v1={v1} result={r1}");
+                Logger.Log($"[{reqId}] MC PULSE: v1={v1} result={r1}");
                 if (r1.StartsWith("ERROR")) return r1;
 
-                Logger.Log($"MC PULSE: waiting {ms}ms...");
-                var endTime = DateTime.Now.AddMilliseconds(ms);
-                while (DateTime.Now < endTime)
+                Logger.Log($"[{reqId}] MC PULSE: scheduling v2={v2} in {ms}ms (async)...");
+                int capturedHandle = handle;
+                _ = Task.Run(async () =>
                 {
-                    _wrapper.KeepAlive();
-                    Thread.SpinWait(100);
-                }
+                    var deadline = DateTime.Now.AddMilliseconds(ms);
+                    while (true)
+                    {
+                        int remaining = Math.Max(0,
+                            (int)(deadline - DateTime.Now).TotalMilliseconds);
+                        if (remaining == 0) break;
+                        await Task.Delay(Math.Min(5_000, remaining));
+                        _wrapper.KeepAlive();
+                    }
+                    Logger.Log($"[{reqId}] MC PULSE: writing v2={v2}...");
+                    string r2 = _wrapper.McWriteObjectValue(
+                        capturedHandle, netId, obj, index, length, v2);
+                    Logger.Log($"[{reqId}] MC PULSE: v2={v2} result={r2}");
+                });
 
-                Logger.Log($"MC PULSE: writing v2={v2}...");
-                string r2 = _wrapper.McWriteObjectValueDirect(handle, netId, obj, index, length, v2);
-                Logger.Log($"MC PULSE: v2={v2} result={r2}");
-
-                return r2.StartsWith("ERROR")
-                    ? r2
-                    : $"OK PULSE {v1}->{v2} ({ms}ms)\r\n{v2}";
+                return $"OK PULSE {v1}->{v2} ({ms}ms) async";
             }
 
             if (!byte.TryParse(dataArg, out byte val))
@@ -491,6 +505,28 @@ namespace EasyComServer
             "SET CONFIGURATION \"var=value\"\r\n" +
             "  HELP\n" +
             "  QUIT";
+
+        // ── Instances ─────────────────────────────────────────────────────────
+
+        /// <summary>Returns the open-connection string for the local instance only.</summary>
+        public string GetLocalConnectionInfo() => _wrapper.GetOpenConnections();
+
+        /// <summary>Returns a JSON array of all HTTP-enabled instances with name, port, and current flag.</summary>
+        public string GetInstancesJson()
+        {
+            var arr = new JsonArray();
+            foreach (var inst in _config.Instances)
+            {
+                if (!inst.HttpEnabled) continue;
+                arr.Add(new JsonObject
+                {
+                    ["name"]    = inst.Name,
+                    ["port"]    = inst.HttpPort,
+                    ["current"] = inst.Name == _instance.Name
+                });
+            }
+            return arr.ToJsonString();
+        }
 
         // ── Helpers ───────────────────────────────────────────────────────────
 

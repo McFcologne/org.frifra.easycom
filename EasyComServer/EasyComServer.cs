@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.ServiceProcess;
 using System.Text;
 using System.Threading;
@@ -38,7 +39,8 @@ namespace EasyComServer
             {
                 string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "easycom.ini");
                 _config = ServerConfig.Load(iniPath);
-                Logger.Init(_config.LogFile, _config.ConsoleLogging);
+                Logger.Init(_config.LogFile, _config.ConsoleLogging,
+                    _config.LogMaxSizeMb, _config.LogMaxFiles);
                 Logger.Log($"EasyComServer starting, config: {iniPath}");
 
                 // Resolve relative DLL path to the exe directory so Windows
@@ -90,6 +92,7 @@ namespace EasyComServer
             foreach (var w in _wrappers.Values) { try { w.Dispose(); } catch { } }
             if (!_wrappers.ContainsValue(_wrapper)) _wrapper?.Dispose();
             Logger.Log("EasyComServer stopped.");
+            Logger.Close();
         }
 
         private void StartHttpListener(InstanceConfig inst)
@@ -151,6 +154,13 @@ namespace EasyComServer
                     ctx.Response.ContentLength64 = deny.Length;
                     ctx.Response.OutputStream.Write(deny, 0, deny.Length);
                     ctx.Response.Close();
+                    return;
+                }
+
+                // ── REST API (/api/...) ───────────────────────────────────────
+                if (absPath.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+                {
+                    RestApiHandler.Handle(ctx, cmdProcessor);
                     return;
                 }
 
@@ -229,9 +239,25 @@ namespace EasyComServer
                 if (colon < 0) return false;
                 string user = decoded[..colon];
                 string pass = decoded[(colon + 1)..];
-                return user == _config.BasicAuthUser && pass == _config.BasicAuthPass;
+                return user == _config.BasicAuthUser && VerifyPassword(pass, _config.BasicAuthPass);
             }
             catch { return false; }
+        }
+
+        private static bool VerifyPassword(string input, string stored)
+        {
+            if (stored.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+            {
+                string hash = HashSha256(input);
+                return string.Equals(hash, stored.Substring(7), StringComparison.OrdinalIgnoreCase);
+            }
+            return input == stored;
+        }
+
+        internal static string HashSha256(string input)
+        {
+            byte[] bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
+            return Convert.ToHexString(bytes).ToLowerInvariant();
         }
 
         /// <summary>
@@ -282,6 +308,8 @@ namespace EasyComServer
                 ".jpg" or ".jpeg" => "image/jpeg",
                 ".svg"            => "image/svg+xml",
                 ".ico"            => "image/x-icon",
+                ".md"             => "text/markdown; charset=utf-8",
+                ""                => "text/plain; charset=utf-8",
                 _                 => "application/octet-stream",
             };
 
@@ -346,6 +374,12 @@ namespace EasyComServer
                 Console.WriteLine("Running in console mode. Press Enter to stop.");
                 Console.ReadLine();
                 svc.OnStop();
+            }
+            else if (args.Length > 1 && args[0].Equals("--hash-password", StringComparison.OrdinalIgnoreCase))
+            {
+                string hash = HashSha256(args[1]);
+                Console.WriteLine($"sha256:{hash}");
+                Console.WriteLine("Set auth_pass to the value above in easycom.ini.");
             }
             else
             {

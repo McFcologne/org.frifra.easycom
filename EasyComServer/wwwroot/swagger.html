@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EasyComServer — API</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="img/swagger-favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="img/swagger-favicon-16.png">
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="css/shared.css">
+  <link rel="stylesheet" href="css/swagger.css">
+  <link rel="stylesheet" href="lib/swagger-ui.css">
+</head>
+<body>
+  <div id="header">
+    <div class="logo">EASY<span>COM</span> SERVER</div>
+    <div id="server-url-display"></div>
+    <div class="dot" id="status-dot"></div>
+    <div id="dot-label">—</div>
+    <nav class="nav-links">
+      <a href="index.html" class="nav-link">Console</a>
+      <a href="swagger.html" class="nav-link active">API</a>
+      <a href="readme.html" class="nav-link">README</a>
+    </nav>
+    <a href="openapi.yaml" download class="yaml-link">openapi.yaml ↓</a>
+  </div>
+
+  <div id="swagger-ui"></div>
+
+  <script src="lib/swagger-ui-bundle.js"></script>
+  <script src="js/shared.js"></script>
+  <script src="js/swagger-init.js"></script>
+</body>
+</html>

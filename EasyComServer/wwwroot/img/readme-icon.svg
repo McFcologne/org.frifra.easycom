@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- left page -->
+  <path d="M1 2.5C1 1.67 1.67 1 2.5 1H7v11.5H2.5C1.67 12.5 1 11.83 1 11z" fill="#ddf4ff" stroke="#0969da" stroke-width=".75"/>
+  <!-- right page -->
+  <path d="M9 1h4.5C14.33 1 15 1.67 15 2.5V11c0 .83-.67 1.5-1.5 1.5H9z" fill="#ddf4ff" stroke="#0969da" stroke-width=".75"/>
+  <!-- spine -->
+  <rect x="7" y="1" width="2" height="11.5" fill="#0969da"/>
+  <!-- left text lines -->
+  <line x1="2.5" y1="4"   x2="6"   y2="4"   stroke="#0969da" stroke-width=".7" stroke-linecap="round"/>
+  <line x1="2.5" y1="5.8" x2="6"   y2="5.8" stroke="#0969da" stroke-width=".7" stroke-linecap="round"/>
+  <line x1="2.5" y1="7.6" x2="5"   y2="7.6" stroke="#0969da" stroke-width=".7" stroke-linecap="round"/>
+  <!-- right text lines -->
+  <line x1="10"  y1="4"   x2="13.5" y2="4"   stroke="#0969da" stroke-width=".7" stroke-linecap="round"/>
+  <line x1="10"  y1="5.8" x2="13.5" y2="5.8" stroke="#0969da" stroke-width=".7" stroke-linecap="round"/>
+  <line x1="10"  y1="7.6" x2="12"   y2="7.6" stroke="#0969da" stroke-width=".7" stroke-linecap="round"/>
+  <!-- bookmark ribbon -->
+  <path d="M5 12.5v2.8l1.5-1 1.5 1V12.5" fill="#0969da"/>
+</svg>

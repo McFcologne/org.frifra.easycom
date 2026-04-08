@@ -7,11 +7,14 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <PlatformTarget>x86</PlatformTarget>
     <Prefer32Bit>true</Prefer32Bit>
-	<Version>2.0.0</Version>
+	<Version>2.1.0</Version>
 	<Copyright>2009-2026 by Michael Fritzsche</Copyright>
+	<ApplicationIcon>easycom.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.0" />
+    <PackageReference Include="Serilog" Version="4.1.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="wwwroot\**\*">
@@ -32,6 +35,11 @@
   </None>
 </ItemGroup>
 <ItemGroup>
-  <None Include="..\README.md" />
+  <Content Include="..\README.md" Link="wwwroot\readme.md">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </Content>
+  <Content Include="..\LICENSE" Link="wwwroot\LICENSE">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </Content>
 </ItemGroup>
 </Project>
