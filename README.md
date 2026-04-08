@@ -168,13 +168,22 @@ EasyComServer\
 | `DllNotFoundException` | EASY_COM.dll missing from output directory | Copy DLL to project folder, set `CopyToOutputDirectory = PreserveNewest` |
 | `HttpListenerException: Access denied` | No HTTP URL ACL registered | Run `install-service.ps1` as Admin, or run `netsh http add urlacl` manually |
 | `Access is denied` (COM port) | Port held by another process | Stop the other process; reduce idle_timeout |
-
 ---
 
-## History
+## Versions
 
 | Version | Date | Description |
 |---|---|---|
 | 0.0.1 | 2009-07-21 | Initial prototype — Windows Service implementation for Windows Server 2003 |
 | 1.0.0 | 2009-08-05 | First stable release of the Delphi-based server application |
 | 2.0.0 | 2026-04-08 | Full rewrite in C# (.NET 8) — migrated from legacy Delphi codebase to Visual Studio; added HTTP/Telnet gateway, multi-instance support, web console and Basic Auth |
+
+---
+
+## Background
+
+This project grew out of my own use of Moeller EASY PLCs in a home automation and building control setup. The devices are connected via RS232-to-Ethernet adapters, which expose virtual COM ports on a Windows Server — making the PLCs accessible over the network just like a locally attached serial device.
+
+I use this setup in two ways: with **EasySoft** for programming and extending the PLC logic, and with this HTTP gateway for runtime monitoring and control. Having a simple HTTP API means I can trigger outputs, read inputs and check device state from any script, browser or home automation system without needing EasySoft running.
+
+The original gateway was a Delphi application written in 2009. After running reliably for over 15 years, it was rewritten in C# (.NET 8) to make it easier to maintain, extend and deploy on modern Windows Server versions.
