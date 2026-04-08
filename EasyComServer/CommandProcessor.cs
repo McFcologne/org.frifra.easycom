@@ -354,11 +354,12 @@ namespace EasyComServer
             sb.AppendLine($"Instance:               {_instance.Name}");
             sb.AppendLine($"HTTP port:              {(_instance.HttpEnabled ? _instance.HttpPort.ToString() : "disabled")}");
             sb.AppendLine($"Telnet port:            {(_instance.TelnetEnabled ? _instance.TelnetPort.ToString() : "disabled")}");
-            sb.AppendLine($"COM port:               {_wrapper.GetComInfo()}");
             sb.AppendLine($"COM idle timeout:       {_config.ComIdleTimeoutSeconds}s");
-            sb.AppendLine($"Single-conn active:     {(_wrapper.IsSingleConnected ? "yes" : "no (auto-opens on next command)")}");
             sb.AppendLine($"Console Logging:        {(_config.ConsoleLogging ? "Enabled" : "Disabled")}");
-            sb.Append($"Open Connections:       {_wrapper.GetOpenConnections()}");
+            string conns = _wrapper.GetOpenConnections();
+            if (conns == "none" && _wrapper.GetDefaultComInfo() != "not configured")
+                conns = $"none (configured: {_wrapper.GetDefaultComInfo()})";
+            sb.Append($"Open Connections:       {conns}");
             return sb.ToString().TrimEnd();
         }
 
