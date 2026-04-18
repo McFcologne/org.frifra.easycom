@@ -1,6 +1,6 @@
 [Setup]
 AppName=EasyComServer
-AppVersion=2.0.0
+AppVersion=2.2.0
 AppPublisher=Michael Fritzsche
 DefaultDirName={autopf}\EasyComServer
 DefaultGroupName=EasyComServer
@@ -12,7 +12,9 @@ SetupIconFile=..\easycom.ico
 PrivilegesRequired=admin
 
 [Files]
-Source: "..\bin\Release\publish\*"; DestDir: "{app}"; Flags: recursesubdirs
+; EASY_COM.dll is excluded from the package — redistribution is not permitted.
+; The installer downloads it at runtime from the Eaton server.
+Source: "..\bin\Release\publish\*"; DestDir: "{app}"; Flags: recursesubdirs; Excludes: "EASY_COM.dll"
 
 [Run]
 Filename: "sc"; Parameters: "create EasyComServer binPath=""{app}\EasyComServer.exe"" start=auto obj=""LocalSystem"" DisplayName=""Moeller EASY COM Server"""; Flags: runhidden
@@ -31,6 +33,7 @@ Name: "{group}\Uninstall"; Filename: "{uninstallexe}"
 var
   PortPage: TInputQueryWizardPage;
   AuthPage: TInputQueryWizardPage;
+  EasyDllResultFile: String;  // set by DownloadEasyComDll, read in CurStepChanged
 
 // Compute SHA-256 via PowerShell and return "sha256:<hex>".
 // Falls back to the plaintext value if PowerShell fails.
@@ -143,6 +146,216 @@ begin
     MsgBox('Could not launch the .NET installer.', mbError, MB_OK);
 end;
 
+// ─── EASY_COM DLL download ──────────────────────────────────────────────────
+
+// Probes Eaton server for versions V251..V260 (HEAD, 3 s timeout each).
+// Falls back to the static V250 URL if no newer release is found.
+// Extracts the ZIP into {app}\EASY_COM_V{n} and writes four lines to
+// EasyDllResultFile: version | dllFullPath | relPath (fwd-slashes) | extractDir.
+// Returns True on success, False on any error.
+function DownloadEasyComDll(const AppDir: String): Boolean;
+var
+  PS1, Script: String;
+  Lines: TArrayOfString;
+  ResultCode: Integer;
+begin
+  Result := False;
+  PS1               := ExpandConstant('{tmp}\geteasydll.ps1');
+  EasyDllResultFile := ExpandConstant('{tmp}\easydll_result.txt');
+  DeleteFile(EasyDllResultFile);
+
+  Script :=
+    'param([string]$AppDir, [string]$ResultFile)' + #13#10 +
+    '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12' + #13#10 +
+    '$base    = ' + #39 + 'https://es-assets.eaton.com/AUTOMATION/DOWNLOAD/DOWNLOADCENTER/EASY/LIB' + #39 + #13#10 +
+    '$bestVer = 250' + #13#10 +
+    '$bestUrl = "$base/EASY_COM_V250.zip"' + #13#10 +
+    'for ($v = 251; $v -le 260; $v++) {' + #13#10 +
+    '    try {' + #13#10 +
+    '        $req = [Net.HttpWebRequest]::Create("$base/EASY_COM_V$v.zip")' + #13#10 +
+    '        $req.Method = ' + #39 + 'HEAD' + #39 + '; $req.Timeout = 3000' + #13#10 +
+    '        ($req.GetResponse()).Close()' + #13#10 +
+    '        $bestVer = $v; $bestUrl = "$base/EASY_COM_V$v.zip"' + #13#10 +
+    '    } catch {}' + #13#10 +
+    '}' + #13#10 +
+    '$zipPath    = [IO.Path]::Combine($env:TEMP, "EASY_COM_V$bestVer.zip")' + #13#10 +
+    '$extractDir = [IO.Path]::Combine($AppDir, "EASY_COM_V$bestVer")' + #13#10 +
+    'try {' + #13#10 +
+    '    (New-Object Net.WebClient).DownloadFile($bestUrl, $zipPath)' + #13#10 +
+    '    if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }' + #13#10 +
+    '    Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force' + #13#10 +
+    '    Remove-Item $zipPath -Force -ErrorAction SilentlyContinue' + #13#10 +
+    '    $dll = Get-ChildItem -Path $extractDir -Filter ' + #39 + 'EASY_COM.dll' + #39 + ' -Recurse |' + #13#10 +
+    '           Select-Object -First 1' + #13#10 +
+    '    if ($dll) {' + #13#10 +
+    '        $rel = $dll.FullName.Substring($AppDir.TrimEnd(' + #39 + '\' + #39 + ').Length)' +
+                   '.TrimStart(' + #39 + '\' + #39 + ') -replace ' + #39 + '\\' + #39 + ', ' + #39 + '/' + #39 + #13#10 +
+    '        [IO.File]::WriteAllLines($ResultFile,' + #13#10 +
+    '            @([string]$bestVer, $dll.FullName, $rel, $extractDir))' + #13#10 +
+    '    } else {' + #13#10 +
+    '        Set-Content $ResultFile ' + #39 + 'ERROR:DLL_NOT_FOUND' + #39 + ' -Encoding ASCII' + #13#10 +
+    '    }' + #13#10 +
+    '} catch {' + #13#10 +
+    '    Set-Content $ResultFile "ERROR:$($_.Exception.Message)" -Encoding ASCII' + #13#10 +
+    '}';
+
+  SaveStringToFile(PS1, Script, False);
+
+  WizardForm.StatusLabel.Caption := 'Suche aktuelle EASY_COM.dll auf Eaton-Server ...';
+
+  Exec('powershell.exe',
+    '-NoProfile -ExecutionPolicy Bypass -File "' + PS1 + '"' +
+    ' -AppDir "' + AppDir + '" -ResultFile "' + EasyDllResultFile + '"',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  DeleteFile(PS1);
+
+  if not LoadStringsFromFile(EasyDllResultFile, Lines) then Exit;
+  if (GetArrayLength(Lines) = 0) or (Pos('ERROR:', Lines[0]) = 1) then Exit;
+
+  Result := True;
+end;
+
+// Searches ExtractDir (and one subdirectory level) for readme*.txt / liesmich*.txt.
+// If found, asks the user and opens the files with the system viewer.
+procedure OfferReadme(const ExtractDir: String);
+var
+  FindRec, Sub: TFindRec;
+  Paths: TArrayOfString;
+  Count, ErrCode, I: Integer;
+  Name, List: String;
+begin
+  Count := 0;
+  SetArrayLength(Paths, 20);
+
+  // Top-level .txt files
+  if FindFirst(ExtractDir + '\*.txt', FindRec) then
+  begin
+    try
+      repeat
+        Name := LowerCase(FindRec.Name);
+        if ((Pos('readme', Name) = 1) or (Pos('liesmich', Name) = 1)) and (Count < 20) then
+        begin
+          Paths[Count] := ExtractDir + '\' + FindRec.Name;
+          Count := Count + 1;
+        end;
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+
+  // One level of subdirectories ($10 = FILE_ATTRIBUTE_DIRECTORY)
+  if FindFirst(ExtractDir + '\*', FindRec) then
+  begin
+    try
+      repeat
+        if (FindRec.Attributes and $10 <> 0) and
+           (FindRec.Name <> '.') and (FindRec.Name <> '..') then
+        begin
+          if FindFirst(ExtractDir + '\' + FindRec.Name + '\*.txt', Sub) then
+          begin
+            try
+              repeat
+                Name := LowerCase(Sub.Name);
+                if ((Pos('readme', Name) = 1) or (Pos('liesmich', Name) = 1)) and (Count < 20) then
+                begin
+                  Paths[Count] := ExtractDir + '\' + FindRec.Name + '\' + Sub.Name;
+                  Count := Count + 1;
+                end;
+              until not FindNext(Sub);
+            finally
+              FindClose(Sub);
+            end;
+          end;
+        end;
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+
+  if Count = 0 then Exit;
+
+  List := '';
+  for I := 0 to Count - 1 do
+  begin
+    if List <> '' then List := List + ', ';
+    List := List + ExtractFileName(Paths[I]);
+  end;
+
+  if MsgBox('Die EASY_COM-Bibliothek wurde erfolgreich installiert.' + #13#10 +
+            'Gefundene Dokumentation: ' + List + #13#10#13#10 +
+            'Jetzt anzeigen?',
+            mbConfirmation, MB_YESNO) = IDYES then
+    for I := 0 to Count - 1 do
+      ShellExec('open', Paths[I], '', '', SW_SHOW, ewNoWait, ErrCode);
+end;
+
+// ────────────────────────────────────────────────────────────────────────────
+
+// Zeigt einen Windows-Datei-öffnen-Dialog (über PowerShell + WinForms),
+// kopiert die gewählte EASY_COM.dll in {app} und trägt sie in easycom.ini ein.
+// Gibt True zurück, wenn die Datei erfolgreich kopiert wurde.
+function BrowseForEasyComDll(const AppDir: String): Boolean;
+var
+  PS1, ResultFile, Script, SrcPath, DestPath, IniFile: String;
+  ResultCode: Integer;
+  Lines: TArrayOfString;
+begin
+  Result := False;
+
+  if MsgBox('EASY_COM.dll manuell von der Festplatte auswählen?' + #13#10 +
+            'Die Datei wird in das Installationsverzeichnis kopiert.',
+            mbConfirmation, MB_YESNO) <> IDYES then Exit;
+
+  PS1        := ExpandConstant('{tmp}\browsedll.ps1');
+  ResultFile := ExpandConstant('{tmp}\browsedll_result.txt');
+  DeleteFile(ResultFile);
+
+  Script :=
+    'Add-Type -AssemblyName System.Windows.Forms' + #13#10 +
+    '$dlg = New-Object System.Windows.Forms.OpenFileDialog' + #13#10 +
+    '$dlg.Title  = ' + #39 + 'EASY_COM.dll auswählen' + #39 + #13#10 +
+    '$dlg.Filter = ' + #39 + 'EASY_COM.dll|EASY_COM.dll|DLL-Dateien (*.dll)|*.dll' + #39 + #13#10 +
+    '$dlg.FileName = ' + #39 + 'EASY_COM.dll' + #39 + #13#10 +
+    'if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {' + #13#10 +
+    '    Set-Content "' + ResultFile + '" $dlg.FileName -Encoding ASCII' + #13#10 +
+    '}';
+
+  SaveStringToFile(PS1, Script, False);
+
+  // -STA required for WinForms dialogs; SW_HIDE suppresses the console window
+  Exec('powershell.exe',
+    '-NoProfile -ExecutionPolicy Bypass -STA -File "' + PS1 + '"',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  DeleteFile(PS1);
+
+  if not LoadStringsFromFile(ResultFile, Lines) then Exit;
+  if GetArrayLength(Lines) = 0 then Exit;
+
+  SrcPath := Trim(Lines[0]);
+  DeleteFile(ResultFile);
+
+  if not FileExists(SrcPath) then Exit;
+
+  DestPath := AppDir + '\EASY_COM.dll';
+
+  if not CopyFile(SrcPath, DestPath, False) then
+  begin
+    MsgBox('Fehler beim Kopieren der Datei:' + #13#10 + SrcPath, mbError, MB_OK);
+    Exit;
+  end;
+
+  IniFile := AppDir + '\easycom.ini';
+  SetIniString('global', 'dll_path', 'EASY_COM.dll', IniFile);
+
+  Result := True;
+end;
+
+// ────────────────────────────────────────────────────────────────────────────
+
 procedure InitializeWizard;
 begin
   PortPage := CreateInputQueryPage(wpSelectDir,
@@ -247,10 +460,11 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  IniFile, HtmlFile, HtmlContent: String;
+  IniFile, HtmlFile: String;
   HttpPort, TelnetPort, ComPort, BaudRate: String;
   AuthUser, AuthPass: String;
   ShellDir, ShellLink: String;
+  DllLines: TArrayOfString;
   Dummy: Integer;
 begin
   if CurStep = ssPostInstall then
@@ -308,6 +522,33 @@ begin
       '[InternetShortcut]' + #13#10 +
       'URL=http://localhost:' + HttpPort + '/' + #13#10,
       False);
+
+    // ── Download EASY_COM.dll from Eaton and update easycom.ini ───────────
+    if DownloadEasyComDll(ExpandConstant('{app}')) then
+    begin
+      if LoadStringsFromFile(EasyDllResultFile, DllLines) and
+         (GetArrayLength(DllLines) >= 4) then
+      begin
+        // DllLines[2] = relative path with forward slashes (e.g. EASY_COM_V250/EASY_COM.dll)
+        SetIniString('global', 'dll_path', DllLines[2], IniFile);
+        OfferReadme(DllLines[3]);
+      end;
+      DeleteFile(EasyDllResultFile);
+    end
+    else
+    begin
+      // Download fehlgeschlagen — manuelle Auswahl anbieten
+      MsgBox('EASY_COM.dll konnte nicht automatisch heruntergeladen werden.' + #13#10 +
+             '(Kein Internetzugang oder Eaton-Server nicht erreichbar.)',
+             mbInformation, MB_OK);
+      if not BrowseForEasyComDll(ExpandConstant('{app}')) then
+        MsgBox('EASY_COM.dll wurde nicht installiert.' + #13#10#13#10 +
+               'Bitte laden Sie die Bibliothek manuell herunter:' + #13#10 +
+               'https://es-assets.eaton.com/AUTOMATION/DOWNLOAD/DOWNLOADCENTER/EASY/LIB/EASY_COM_V250.zip' + #13#10#13#10 +
+               'Kopieren Sie EASY_COM.dll anschließend in:' + #13#10 +
+               ExpandConstant('{app}'),
+               mbInformation, MB_OK);
+    end;
   end;
 end;
 

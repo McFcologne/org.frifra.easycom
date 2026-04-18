@@ -7,7 +7,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <PlatformTarget>x86</PlatformTarget>
     <Prefer32Bit>true</Prefer32Bit>
-	<Version>2.1.0</Version>
+	<Version>2.2.0</Version>
 	<Copyright>2009-2026 by Michael Fritzsche</Copyright>
 	<ApplicationIcon>easycom.ico</ApplicationIcon>
   </PropertyGroup>
@@ -25,15 +25,13 @@
     <None Include="easycom.ini">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- EASY_COM.dll is copied for local debugging only.
+         The Inno Setup script explicitly excludes it from the installer package
+         because redistribution is not permitted; the installer downloads it from Eaton. -->
+    <None Include="EASY_COM.dll" Condition="Exists('EASY_COM.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
-  <ItemGroup>
-  <None Include="easycom.ini">
-    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-  </None>
-  <None Include="EASY_COM.dll">
-    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-  </None>
-</ItemGroup>
 <ItemGroup>
   <Content Include="..\README.md" Link="wwwroot\readme.md">
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

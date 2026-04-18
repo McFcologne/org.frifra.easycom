@@ -43,11 +43,29 @@ namespace EasyComServer
                     _config.LogMaxSizeMb, _config.LogMaxFiles);
                 Logger.Log($"EasyComServer starting, config: {iniPath}");
 
-                // Resolve relative DLL path to the exe directory so Windows
-                // does not accidentally pick up a copy from System32 or PATH.
+                // Resolve relative DLL path against the exe directory.
+                // Forward slashes (written by the installer) work fine with Path.Combine.
                 if (!Path.IsPathRooted(_config.DllPath))
                     _config.DllPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, _config.DllPath);
                 Logger.Log($"DLL path resolved to: {_config.DllPath}");
+
+                if (!File.Exists(_config.DllPath))
+                    throw new FileNotFoundException(
+                        $"EASY_COM.dll not found at configured path: {_config.DllPath}. " +
+                        "Check dll_path in easycom.ini.", _config.DllPath);
+
+                // Redirect all [DllImport("EASY_COM.dll")] calls to the configured path.
+                // Without this, Windows would search only the app directory and PATH,
+                // which breaks when the DLL lives in a versioned subdirectory.
+                string resolvedDllPath = _config.DllPath;
+                NativeLibrary.SetDllImportResolver(typeof(EasyComWrapper).Assembly,
+                    (libraryName, _, _) =>
+                    {
+                        if (string.Equals(libraryName, "EASY_COM.dll",
+                                StringComparison.OrdinalIgnoreCase))
+                            return NativeLibrary.Load(resolvedDllPath);
+                        return IntPtr.Zero;
+                    });
 
                 // Each instance gets its own EasyComWrapper
                 // so COM ports are managed independently
