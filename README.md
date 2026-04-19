@@ -211,6 +211,9 @@ EasyComServer\
 | 2.0.0 | 2026-04-07 | Full rewrite in C# (.NET 8) — migrated from legacy Delphi codebase to Visual Studio; added HTTP/Telnet gateway, multi-instance support, web console and Basic Auth |
 | 2.1.0 | 2026-04-08 | Added RESTful API (`/api/v1`), OpenAPI 3.0 specification (`openapi.yaml`), interactive Swagger UI test page (`/swagger.html`) |
 | 2.1.1 | 2026-04-09 | SHA-256 password hashing for Basic Auth; MIT License added |
+| 2.2.0 | 2026-04-19 | Installer downloads EASY_COM.dll automatically from Eaton (latest version probe, versioned subfolder, readme offer, manual fallback via file picker); `NativeLibrary.SetDllImportResolver` makes configured `dll_path` effective for all P/Invoke calls; DLL excluded from installer package |
+
+See [RELEASENOTES.md](RELEASENOTES.md) for full details.
 
 ---
 

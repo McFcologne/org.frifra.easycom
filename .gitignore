@@ -21,7 +21,6 @@ publish/
 
 ## Die DLL nicht in git – separat bereitstellen
 EASY_COM.dll
-EasyComServer/EasyComServer.Setup/EasyComServer_Setup.exe
 
 ## CLAUDE ausschließen
 .claude/
