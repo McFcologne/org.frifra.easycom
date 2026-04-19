@@ -338,10 +338,10 @@ namespace EasyComServer
                     string ver = $"{vi.FileMajorPart}.{vi.FileMinorPart}.{vi.FileBuildPart}.{vi.FilePrivatePart}";
                     bool supported = vi.FileMajorPart == 2
                                   && vi.FileMinorPart >= 3
-                                  && vi.FileMinorPart <= 4;
+                                  && vi.FileMinorPart <= 5;
                     return supported
                         ? $"{ver} (supported)"
-                        : $"{ver} (not tested — supported range: 2.3.x–2.4.x)";
+                        : $"{ver} (not tested — supported range: 2.3.x–2.5.x)";
                 }
 
                 return "unknown";
