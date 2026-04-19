@@ -508,8 +508,6 @@ end;
 // ────────────────────────────────────────────────────────────────────────────
 
 procedure InitializeWizard;
-var
-  IniFile: String;
 begin
   PortPage := CreateInputQueryPage(wpSelectDir,
     CustomMessage('PagePortTitle'),
@@ -527,32 +525,14 @@ begin
   AuthPage.Add(CustomMessage('PageAuthUser'), False);
   AuthPage.Add(CustomMessage('PageAuthPass'), True);
 
-  // Check for an existing easycom.ini from a previous installation
-  IniFile := ExpandConstant('{app}\easycom.ini');
-  ExistingIniFound := FileExists(IniFile);
-
-  if ExistingIniFound then
-  begin
-    // Pre-populate wizard values from existing ini so the user sees what is kept
-    PortPage.Values[0] := GetIniString('instance', 'http_port',   '8083', IniFile);
-    PortPage.Values[1] := GetIniString('instance', 'telnet_port', '23',   IniFile);
-    PortPage.Values[2] := GetIniString('instance', 'com_port',    '1',    IniFile);
-    PortPage.Values[3] := GetIniString('instance', 'baud_rate',   '9600', IniFile);
-    AuthPage.Values[0] := GetIniString('instance', 'auth_user',   'admin', IniFile);
-    AuthPage.Values[1] := '';  // never pre-fill password field
-
-    MsgBox(CustomMessage('ExistingConfigFound'), mbInformation, MB_OK);
-  end
-  else
-  begin
-    // Default values for a fresh installation
-    PortPage.Values[0] := '8083';
-    PortPage.Values[1] := '23';
-    PortPage.Values[2] := '1';
-    PortPage.Values[3] := '9600';
-    AuthPage.Values[0] := 'admin';
-    AuthPage.Values[1] := '';
-  end;
+  // Fill with defaults; existing-config detection happens in NextButtonClick
+  // on wpSelectDir, once the user has confirmed the target directory.
+  PortPage.Values[0] := '8083';
+  PortPage.Values[1] := '23';
+  PortPage.Values[2] := '1';
+  PortPage.Values[3] := '9600';
+  AuthPage.Values[0] := 'admin';
+  AuthPage.Values[1] := '';
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -565,8 +545,26 @@ end;
 function NextButtonClick(CurPageID: Integer): Boolean;
 var
   Http, Telnet, Com, Baud: Integer;
+  IniFile: String;
 begin
   Result := True;
+
+  if CurPageID = wpSelectDir then
+  begin
+    // Detect existing config once the user has confirmed the target directory.
+    IniFile := WizardDirValue() + '\easycom.ini';
+    ExistingIniFound := FileExists(IniFile);
+    if ExistingIniFound then
+    begin
+      PortPage.Values[0] := GetIniString('instance', 'http_port',   '8083',  IniFile);
+      PortPage.Values[1] := GetIniString('instance', 'telnet_port', '23',    IniFile);
+      PortPage.Values[2] := GetIniString('instance', 'com_port',    '1',     IniFile);
+      PortPage.Values[3] := GetIniString('instance', 'baud_rate',   '9600',  IniFile);
+      AuthPage.Values[0] := GetIniString('instance', 'auth_user',   'admin', IniFile);
+      AuthPage.Values[1] := '';
+      MsgBox(CustomMessage('ExistingConfigFound'), mbInformation, MB_OK);
+    end;
+  end;
 
   if CurPageID = PortPage.ID then
   begin
