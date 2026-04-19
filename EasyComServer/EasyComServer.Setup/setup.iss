@@ -16,7 +16,10 @@ PrivilegesRequired=admin
 [Files]
 ; EASY_COM.dll is excluded from the package — redistribution is not permitted.
 ; The installer downloads it at runtime from the Eaton server.
-Source: "..\bin\Release\publish\*"; DestDir: "{app}"; Flags: recursesubdirs; Excludes: "EASY_COM.dll"
+Source: "..\bin\Release\publish\*"; DestDir: "{app}"; Flags: recursesubdirs; Excludes: "EASY_COM.dll,easycom.ini"
+; easycom.ini: only written if not already present; never removed by the uninstaller
+; (we handle deletion ourselves in CurUninstallStepChanged after asking the user)
+Source: "..\bin\Release\publish\easycom.ini"; DestDir: "{app}"; Flags: uninsneveruninstall onlyifdoesntexist
 
 [Run]
 Filename: "sc"; Parameters: "create EasyComServer binPath=""{app}\EasyComServer.exe"" start=auto obj=""LocalSystem"" DisplayName=""Moeller EASY COM Server"""; Flags: runhidden
@@ -63,6 +66,54 @@ german.DllBrowseTitle=EASY_COM.dll auswählen
 german.DllBrowseFilter=EASY_COM.dll|EASY_COM.dll|DLL-Dateien (*.dll)|*.dll
 german.DllCopyError=Fehler beim Kopieren der Datei:
 
+; ── Wizard pages ──────────────────────────────────────────────────────────────
+english.PagePortTitle=Port and Interface Configuration
+english.PagePortSubtitle=Configure the ports and the COM interface.
+english.PagePortHttp=HTTP port (web console):
+english.PagePortTelnet=Telnet port:
+english.PagePortCom=COM port (1=COM1, 2=COM2 ...):
+english.PagePortBaud=Baud rate:
+english.PageAuthTitle=Access Protection (optional)
+english.PageAuthSubtitle=HTTP Basic Authentication for the web console.
+english.PageAuthDesc=Leave blank to disable authentication.
+english.PageAuthUser=Username:
+english.PageAuthPass=Password:
+
+german.PagePortTitle=Port- und Schnittstellenkonfiguration
+german.PagePortSubtitle=Ports und COM-Schnittstelle konfigurieren.
+german.PagePortHttp=HTTP-Port (Webkonsole):
+german.PagePortTelnet=Telnet-Port:
+german.PagePortCom=COM-Port (1=COM1, 2=COM2 ...):
+german.PagePortBaud=Baudrate:
+german.PageAuthTitle=Zugriffsschutz (optional)
+german.PageAuthSubtitle=HTTP-Basic-Authentifizierung für die Webkonsole.
+german.PageAuthDesc=Leer lassen, um die Authentifizierung zu deaktivieren.
+german.PageAuthUser=Benutzername:
+german.PageAuthPass=Passwort:
+
+; ── Validation ────────────────────────────────────────────────────────────────
+english.ErrHttpPort=Please enter a valid HTTP port (1-65535).
+english.ErrTelnetPort=Please enter a valid Telnet port (1-65535).
+english.ErrPortsEqual=HTTP port and Telnet port must be different.
+english.ErrComPort=Please enter a valid COM port number (1-32).
+english.ErrBaudRate=Please enter a valid baud rate (300-115200).
+english.WarnNoPassword=No password specified.%nWithout a password the web console is unprotected.%nContinue anyway?
+
+german.ErrHttpPort=Bitte einen gültigen HTTP-Port eingeben (1–65535).
+german.ErrTelnetPort=Bitte einen gültigen Telnet-Port eingeben (1–65535).
+german.ErrPortsEqual=HTTP-Port und Telnet-Port müssen unterschiedlich sein.
+german.ErrComPort=Bitte eine gültige COM-Port-Nummer eingeben (1–32).
+german.ErrBaudRate=Bitte eine gültige Baudrate eingeben (300–115200).
+german.WarnNoPassword=Kein Passwort angegeben.%nOhne Passwort ist die Webkonsole ungeschützt.%nTrotzdem fortfahren?
+
+; ── Existing config detection ─────────────────────────────────────────────────
+english.ExistingConfigFound=An existing configuration file was found.%nPort and authentication settings from the previous installation will be kept.%nThe configuration pages will be skipped.
+german.ExistingConfigFound=Eine vorhandene Konfigurationsdatei wurde gefunden.%nPort- und Authentifizierungseinstellungen der vorherigen Installation werden übernommen.%nDie Konfigurationsseiten werden übersprungen.
+
+; ── Uninstall ─────────────────────────────────────────────────────────────────
+english.UninstallKeepConfig=Keep the configuration file (easycom.ini)?%n%nYes — settings are preserved for a future reinstallation.%nNo  — the file is deleted.
+german.UninstallKeepConfig=Konfigurationsdatei (easycom.ini) behalten?%n%nJa  — Einstellungen bleiben für eine spätere Neuinstallation erhalten.%nNein — die Datei wird gelöscht.
+
 ; ── Download failed messages ──────────────────────────────────────────────────
 english.DllDownloadFailed=EASY_COM.dll could not be downloaded automatically.%n(No internet access or Eaton server unreachable.)
 english.DllNotInstalled=EASY_COM.dll was not installed.
@@ -79,6 +130,8 @@ var
   PortPage: TInputQueryWizardPage;
   AuthPage: TInputQueryWizardPage;
   EasyDllResultFile: String;  // set by DownloadEasyComDll, read in CurStepChanged
+  ExistingIniFound: Boolean;  // True when easycom.ini already exists in {app}
+  KeepConfig: Boolean;        // True when user wants to keep easycom.ini on uninstall
 
 // Compute SHA-256 via PowerShell and return "sha256:<hex>".
 // Falls back to the plaintext value if PowerShell fails.
@@ -455,28 +508,58 @@ end;
 // ────────────────────────────────────────────────────────────────────────────
 
 procedure InitializeWizard;
+var
+  IniFile: String;
 begin
   PortPage := CreateInputQueryPage(wpSelectDir,
-    'Port and Interface Configuration',
-    'Configure the ports and the COM interface.',
+    CustomMessage('PagePortTitle'),
+    CustomMessage('PagePortSubtitle'),
     '');
-  PortPage.Add('HTTP port (web console):', False);
-  PortPage.Add('Telnet port:', False);
-  PortPage.Add('COM port (1=COM1, 2=COM2 ...):', False);
-  PortPage.Add('Baud rate:', False);
-  PortPage.Values[0] := '8083';
-  PortPage.Values[1] := '23';
-  PortPage.Values[2] := '1';
-  PortPage.Values[3] := '9600';
+  PortPage.Add(CustomMessage('PagePortHttp'),   False);
+  PortPage.Add(CustomMessage('PagePortTelnet'), False);
+  PortPage.Add(CustomMessage('PagePortCom'),    False);
+  PortPage.Add(CustomMessage('PagePortBaud'),   False);
 
   AuthPage := CreateInputQueryPage(PortPage.ID,
-    'Access Protection (optional)',
-    'HTTP Basic Authentication for the web console.',
-    'Leave blank to disable authentication.');
-  AuthPage.Add('Username:', False);
-  AuthPage.Add('Password:', True);
-  AuthPage.Values[0] := 'admin';
-  AuthPage.Values[1] := '';
+    CustomMessage('PageAuthTitle'),
+    CustomMessage('PageAuthSubtitle'),
+    CustomMessage('PageAuthDesc'));
+  AuthPage.Add(CustomMessage('PageAuthUser'), False);
+  AuthPage.Add(CustomMessage('PageAuthPass'), True);
+
+  // Check for an existing easycom.ini from a previous installation
+  IniFile := ExpandConstant('{app}\easycom.ini');
+  ExistingIniFound := FileExists(IniFile);
+
+  if ExistingIniFound then
+  begin
+    // Pre-populate wizard values from existing ini so the user sees what is kept
+    PortPage.Values[0] := GetIniString('instance', 'http_port',   '8083', IniFile);
+    PortPage.Values[1] := GetIniString('instance', 'telnet_port', '23',   IniFile);
+    PortPage.Values[2] := GetIniString('instance', 'com_port',    '1',    IniFile);
+    PortPage.Values[3] := GetIniString('instance', 'baud_rate',   '9600', IniFile);
+    AuthPage.Values[0] := GetIniString('instance', 'auth_user',   'admin', IniFile);
+    AuthPage.Values[1] := '';  // never pre-fill password field
+
+    MsgBox(CustomMessage('ExistingConfigFound'), mbInformation, MB_OK);
+  end
+  else
+  begin
+    // Default values for a fresh installation
+    PortPage.Values[0] := '8083';
+    PortPage.Values[1] := '23';
+    PortPage.Values[2] := '1';
+    PortPage.Values[3] := '9600';
+    AuthPage.Values[0] := 'admin';
+    AuthPage.Values[1] := '';
+  end;
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  // Skip port and auth pages when an existing configuration is being kept
+  Result := ExistingIniFound and
+            ((PageID = PortPage.ID) or (PageID = AuthPage.ID));
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -494,27 +577,27 @@ begin
 
     if (Http < 1) or (Http > 65535) then
     begin
-      MsgBox('Please enter a valid HTTP port (1-65535).', mbError, MB_OK);
+      MsgBox(CustomMessage('ErrHttpPort'), mbError, MB_OK);
       Result := False; Exit;
     end;
     if (Telnet < 1) or (Telnet > 65535) then
     begin
-      MsgBox('Please enter a valid Telnet port (1-65535).', mbError, MB_OK);
+      MsgBox(CustomMessage('ErrTelnetPort'), mbError, MB_OK);
       Result := False; Exit;
     end;
     if Http = Telnet then
     begin
-      MsgBox('HTTP port and Telnet port must be different.', mbError, MB_OK);
+      MsgBox(CustomMessage('ErrPortsEqual'), mbError, MB_OK);
       Result := False; Exit;
     end;
     if (Com < 1) or (Com > 32) then
     begin
-      MsgBox('Please enter a valid COM port number (1-32).', mbError, MB_OK);
+      MsgBox(CustomMessage('ErrComPort'), mbError, MB_OK);
       Result := False; Exit;
     end;
     if (Baud < 300) or (Baud > 115200) then
     begin
-      MsgBox('Please enter a valid baud rate (300-115200).', mbError, MB_OK);
+      MsgBox(CustomMessage('ErrBaudRate'), mbError, MB_OK);
       Result := False; Exit;
     end;
   end;
@@ -523,10 +606,7 @@ begin
   begin
     if (AuthPage.Values[0] <> '') and (AuthPage.Values[1] = '') then
     begin
-      if MsgBox('No password specified.' + #13#10 +
-                'Without a password the web console is unprotected.' + #13#10 +
-                'Continue anyway?',
-                mbConfirmation, MB_YESNO) = IDNO then
+      if MsgBox(CustomMessage('WarnNoPassword'), mbConfirmation, MB_YESNO) = IDNO then
       begin
         Result := False; Exit;
       end;
@@ -567,28 +647,37 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
-    HttpPort   := PortPage.Values[0];
-    TelnetPort := PortPage.Values[1];
-    ComPort    := PortPage.Values[2];
-    BaudRate   := PortPage.Values[3];
-    AuthUser   := AuthPage.Values[0];
-    AuthPass   := AuthPage.Values[1];
-
-    // Write settings to easycom.ini
     IniFile := ExpandConstant('{app}\easycom.ini');
-    SetIniString('instance', 'http_port',   HttpPort,   IniFile);
-    SetIniString('instance', 'telnet_port', TelnetPort, IniFile);
-    SetIniString('instance', 'com_port',    ComPort,    IniFile);
-    SetIniString('instance', 'baud_rate',   BaudRate,   IniFile);
 
-    if (AuthUser <> '') and (AuthPass <> '') then
+    if not ExistingIniFound then
     begin
-      SetIniString('instance', 'basic_auth', 'true',                      IniFile);
-      SetIniString('instance', 'auth_user',  AuthUser,                    IniFile);
-      SetIniString('instance', 'auth_pass',  HashPasswordSha256(AuthPass), IniFile);
+      // Fresh installation: write wizard values to easycom.ini
+      HttpPort   := PortPage.Values[0];
+      TelnetPort := PortPage.Values[1];
+      ComPort    := PortPage.Values[2];
+      BaudRate   := PortPage.Values[3];
+      AuthUser   := AuthPage.Values[0];
+      AuthPass   := AuthPage.Values[1];
+
+      SetIniString('instance', 'http_port',   HttpPort,   IniFile);
+      SetIniString('instance', 'telnet_port', TelnetPort, IniFile);
+      SetIniString('instance', 'com_port',    ComPort,    IniFile);
+      SetIniString('instance', 'baud_rate',   BaudRate,   IniFile);
+
+      if (AuthUser <> '') and (AuthPass <> '') then
+      begin
+        SetIniString('instance', 'basic_auth', 'true',                       IniFile);
+        SetIniString('instance', 'auth_user',  AuthUser,                     IniFile);
+        SetIniString('instance', 'auth_pass',  HashPasswordSha256(AuthPass), IniFile);
+      end
+      else
+        SetIniString('instance', 'basic_auth', 'false', IniFile);
     end
     else
-      SetIniString('instance', 'basic_auth', 'false', IniFile);
+    begin
+      // Reinstall: read existing values for URL patching below
+      HttpPort := GetIniString('instance', 'http_port', '8083', IniFile);
+    end;
 
     // Patch index.html: update the default server URL via PowerShell script
     HtmlFile := ExpandConstant('{app}\wwwroot\index.html');
@@ -659,6 +748,10 @@ begin
     Exec('netsh',
       'http delete urlacl url="http://+:' + HttpPort + '/"',
       '', SW_HIDE, ewWaitUntilTerminated, Dummy);
+
+    // Ask whether to keep easycom.ini for a future reinstallation
+    KeepConfig := MsgBox(CustomMessage('UninstallKeepConfig'),
+                         mbConfirmation, MB_YESNO) = IDYES;
   end;
 
   if CurUninstallStep = usPostUninstall then
@@ -667,5 +760,9 @@ begin
     ShellLink := ExpandConstant('{commonprograms}\EasyComServer\EasyComServer Web Console.url');
     DeleteFile(ShellLink);
     RemoveDir(ExpandConstant('{commonprograms}\EasyComServer'));
+
+    // Delete easycom.ini only when the user opted not to keep it
+    if not KeepConfig then
+      DeleteFile(ExpandConstant('{app}\easycom.ini'));
   end;
 end;
