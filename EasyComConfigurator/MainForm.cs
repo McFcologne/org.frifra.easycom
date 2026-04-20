@@ -807,8 +807,10 @@ namespace EasyComConfigurator
             _list.Items.Clear();
             _list.Items.Add("⚙  Global");
             foreach (var inst in _instances) _list.Items.Add(InstLabel(inst));
+            _activeIdx = Math.Max(0, Math.Min(selectIdx, _list.Items.Count - 1));
+            _list.SelectedIndex = _activeIdx;
             _loading = false;
-            _list.SelectedIndex = Math.Max(0, Math.Min(selectIdx, _list.Items.Count - 1));
+            LoadSelected();
         }
 
         private static string InstLabel(InstanceCfg inst) => $"▶  {inst.Name}  (:{inst.HttpPort})";
