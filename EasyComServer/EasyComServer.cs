@@ -24,6 +24,7 @@ namespace EasyComServer
         private CancellationTokenSource _cts = new();
         private readonly DateTime _startTime = DateTime.Now;
         private string _dllVersion = "unknown";
+        private string _iniPath = "";
 
         public EasyComService()
         {
@@ -37,11 +38,11 @@ namespace EasyComServer
         {
             try
             {
-                string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "easycom.ini");
-                _config = ServerConfig.Load(iniPath);
+                _iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "easycom.ini");
+                _config = ServerConfig.Load(_iniPath);
                 Logger.Init(_config.LogFile, _config.ConsoleLogging,
                     _config.LogMaxSizeMb, _config.LogMaxFiles);
-                Logger.Log($"EasyComServer starting, config: {iniPath}");
+                Logger.Log($"EasyComServer starting, config: {_iniPath}");
 
                 // Resolve relative DLL path against the exe directory.
                 // Forward slashes (written by the installer) work fine with Path.Combine.
@@ -125,7 +126,7 @@ namespace EasyComServer
             Task.Run(async () =>
             {
                 var instWrapper = _wrappers.TryGetValue(inst.Name, out var w) ? w : _wrapper;
-                var cmdProcessor = new CommandProcessor(instWrapper, _config, inst, _startTime, _dllVersion, _wrappers);
+                var cmdProcessor = new CommandProcessor(instWrapper, _config, inst, _startTime, _dllVersion, _wrappers, _iniPath);
                 while (!_cts.Token.IsCancellationRequested)
                 {
                     try
@@ -342,7 +343,7 @@ namespace EasyComServer
             Task.Run(async () =>
             {
                 var instWrapper = _wrappers.TryGetValue(inst.Name, out var w) ? w : _wrapper;
-                var cmdProcessor = new CommandProcessor(instWrapper, _config, inst, _startTime, _dllVersion, _wrappers);
+                var cmdProcessor = new CommandProcessor(instWrapper, _config, inst, _startTime, _dllVersion, _wrappers, _iniPath);
                 while (!_cts.Token.IsCancellationRequested)
                 {
                     try

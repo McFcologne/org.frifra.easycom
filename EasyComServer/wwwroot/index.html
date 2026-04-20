@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="fonts/fonts.css">
   <link rel="stylesheet" href="css/shared.css">
   <link rel="stylesheet" href="css/console.css">
+  <link rel="stylesheet" href="css/settings.css">
 </head>
 <body>
   <div id="app">
@@ -22,6 +23,7 @@
         <a href="index.html" class="nav-link active">Console</a>
         <a href="swagger.html" class="nav-link">API</a>
         <a href="readme.html" class="nav-link">README</a>
+        <button class="nav-link nav-settings" onclick="openSettings()">&#x2699; SETTINGS</button>
       </nav>
       <a href="openapi.yaml" download class="yaml-link" style="visibility:hidden">openapi.yaml ↓</a>
     </div>
@@ -131,5 +133,40 @@
   </div>
 
   <script src="js/console.js"></script>
+  <script src="js/settings.js"></script>
+
+<!-- ── Settings modal ──────────────────────────────────────────────────── -->
+<div id="cfg-overlay" class="cfg-overlay">
+  <div class="cfg-dlg">
+    <div class="cfg-titlebar">
+      EasyComServer Konfigurator
+      <button class="cfg-close" onclick="closeSettings()">&#x2715;</button>
+    </div>
+    <div class="cfg-top">
+      <label>Konfigurationsdatei:</label>
+      <input type="text" id="cfg-ini-path" readonly>
+    </div>
+    <div class="cfg-split">
+      <div class="cfg-left">
+        <ul class="cfg-list" id="cfg-list"></ul>
+        <div class="cfg-list-btns">
+          <button onclick="cfgAddInstance()">+ Hinzuf&#xFC;gen</button>
+          <button onclick="cfgRemoveInstance()">&#x2212; Entfernen</button>
+        </div>
+      </div>
+      <div class="cfg-right" id="cfg-editor"></div>
+    </div>
+    <div class="cfg-bottom">
+      <fieldset class="cfg-svc">
+        <legend>Server</legend>
+        <span id="cfg-svc-status">&#x2026;</span>
+      </fieldset>
+      <div class="cfg-bottom-btns">
+        <button class="cfg-btn-save" onclick="cfgSave()">&#x1F4BE;&#xA0;Speichern</button>
+        <button class="cfg-btn-cancel" onclick="closeSettings()">Schlie&#xDF;en</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>

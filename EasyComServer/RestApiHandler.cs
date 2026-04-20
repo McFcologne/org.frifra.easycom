@@ -49,6 +49,21 @@ namespace EasyComServer
 
             switch (segs[0])
             {
+                // /api/v1/config
+                case "config":
+                    if (segs.Length == 1)
+                    {
+                        if (method == "GET")
+                            return (200, cmd.GetFullConfigJson());
+                        if (method == "POST")
+                        {
+                            var body = ReadBody(ctx);
+                            if (body == null) return (400, Error("JSON body required"));
+                            return (200, cmd.ApplyAndWriteConfig(body));
+                        }
+                    }
+                    break;
+
                 // /api/v1/instances
                 case "instances":
                     if (segs.Length == 1 && method == "GET")

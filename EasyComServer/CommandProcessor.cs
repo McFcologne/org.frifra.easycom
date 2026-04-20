@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -15,6 +16,7 @@ namespace EasyComServer
         private readonly InstanceConfig _instance;
         private readonly DateTime _startTime;
         private readonly string _dllVersion;
+        private readonly string _iniPath;
 
         private static readonly string[] TopCommands =
         {
@@ -48,7 +50,8 @@ namespace EasyComServer
 
         public CommandProcessor(EasyComWrapper wrapper, ServerConfig config,
             InstanceConfig instance, DateTime startTime, string dllVersion,
-            IReadOnlyDictionary<string, EasyComWrapper>? allWrappers = null)
+            IReadOnlyDictionary<string, EasyComWrapper>? allWrappers = null,
+            string iniPath = "")
         {
             _wrapper = wrapper;
             _allWrappers = allWrappers ?? new Dictionary<string, EasyComWrapper> { [instance.Name] = wrapper };
@@ -56,6 +59,7 @@ namespace EasyComServer
             _instance = instance;
             _startTime = startTime;
             _dllVersion = dllVersion;
+            _iniPath = iniPath;
         }
 
         public string Execute(string commandLine)
@@ -554,6 +558,185 @@ namespace EasyComServer
                 });
             }
             return arr.ToJsonString();
+        }
+
+        // ── Config API ────────────────────────────────────────────────────────
+
+        public string GetFullConfigJson()
+        {
+            var cfg = new JsonObject
+            {
+                ["ini_path"]        = _iniPath,
+                ["dll_path"]        = _config.DllPath,
+                ["log_file"]        = _config.LogFile,
+                ["console_logging"] = _config.ConsoleLogging,
+                ["log_max_size_mb"] = _config.LogMaxSizeMb,
+                ["log_max_files"]   = _config.LogMaxFiles,
+                ["com_idle_timeout"] = _config.ComIdleTimeoutSeconds,
+                ["basic_auth"]      = _config.BasicAuthEnabled,
+                ["auth_user"]       = _config.BasicAuthUser,
+                ["auth_pass"]       = _config.BasicAuthPass,
+            };
+            var instances = new JsonArray();
+            foreach (var inst in _config.Instances)
+                instances.Add(new JsonObject
+                {
+                    ["name"]           = inst.Name,
+                    ["http_enabled"]   = inst.HttpEnabled,
+                    ["http_port"]      = inst.HttpPort,
+                    ["telnet_enabled"] = inst.TelnetEnabled,
+                    ["telnet_port"]    = inst.TelnetPort,
+                    ["com_port"]       = inst.ComPort,
+                    ["baud_rate"]      = inst.BaudRate,
+                });
+            cfg["instances"] = instances;
+            return new JsonObject { ["ok"] = true, ["config"] = cfg }.ToJsonString();
+        }
+
+        public string ApplyAndWriteConfig(JsonObject body)
+        {
+            if (string.IsNullOrEmpty(_iniPath))
+                return new JsonObject { ["ok"] = false, ["error"] = "INI path not available" }.ToJsonString();
+
+            try
+            {
+                var liveApplied    = new JsonArray();
+                var restartRequired = new JsonArray();
+
+                void CheckLive(string key, Action apply)  { apply(); liveApplied.Add(key); }
+                void CheckRestart(string key, bool changed) { if (changed) restartRequired.Add(key); }
+
+                if (body.ContainsKey("console_logging"))
+                {
+                    bool v = body["console_logging"]?.GetValue<bool>() ?? _config.ConsoleLogging;
+                    CheckLive("console_logging", () => { _config.ConsoleLogging = v; Logger.SetConsole(v); });
+                }
+                if (body.ContainsKey("com_idle_timeout"))
+                {
+                    int v = body["com_idle_timeout"]?.GetValue<int>() ?? _config.ComIdleTimeoutSeconds;
+                    CheckLive("com_idle_timeout", () => { _config.ComIdleTimeoutSeconds = v; _wrapper.SetComIdleTimeout(v); });
+                }
+                if (body.ContainsKey("basic_auth"))
+                {
+                    bool v = body["basic_auth"]?.GetValue<bool>() ?? _config.BasicAuthEnabled;
+                    CheckLive("basic_auth", () => _config.BasicAuthEnabled = v);
+                }
+                if (body.ContainsKey("auth_user"))
+                {
+                    string v = body["auth_user"]?.GetValue<string>() ?? _config.BasicAuthUser;
+                    CheckLive("auth_user", () => _config.BasicAuthUser = v);
+                }
+                if (body.ContainsKey("auth_pass"))
+                {
+                    string v = body["auth_pass"]?.GetValue<string>() ?? _config.BasicAuthPass;
+                    CheckLive("auth_pass", () => _config.BasicAuthPass = v);
+                }
+
+                // Non-live globals
+                if (body.ContainsKey("dll_path"))      { string v = body["dll_path"]?.GetValue<string>() ?? _config.DllPath;      CheckRestart("dll_path", v != _config.DllPath);       _config.DllPath = v; }
+                if (body.ContainsKey("log_file"))       { string v = body["log_file"]?.GetValue<string>() ?? _config.LogFile;       CheckRestart("log_file", v != _config.LogFile);        _config.LogFile = v; }
+                if (body.ContainsKey("log_max_size_mb")){ int    v = body["log_max_size_mb"]?.GetValue<int>() ?? _config.LogMaxSizeMb; CheckRestart("log_max_size_mb", v != _config.LogMaxSizeMb); _config.LogMaxSizeMb = v; }
+                if (body.ContainsKey("log_max_files"))  { int    v = body["log_max_files"]?.GetValue<int>()  ?? _config.LogMaxFiles;  CheckRestart("log_max_files",   v != _config.LogMaxFiles);   _config.LogMaxFiles  = v; }
+
+                // Instances
+                if (body.ContainsKey("instances") && body["instances"] is JsonArray arr)
+                {
+                    int existing = _config.Instances.Count;
+                    if (arr.Count != existing)
+                        restartRequired.Add("instance_count");
+
+                    for (int i = 0; i < arr.Count; i++)
+                    {
+                        var ij = arr[i]?.AsObject();
+                        if (ij == null) continue;
+                        if (i < existing)
+                        {
+                            var inst = _config.Instances[i];
+                            if (ij.ContainsKey("name"))           { string v = ij["name"]!.GetValue<string>();  CheckRestart($"{inst.Name}/name",           v != inst.Name);          inst.Name          = v; }
+                            if (ij.ContainsKey("http_enabled"))   { bool   v = ij["http_enabled"]!.GetValue<bool>();   CheckRestart($"{inst.Name}/http_enabled",   v != inst.HttpEnabled);   inst.HttpEnabled   = v; }
+                            if (ij.ContainsKey("http_port"))      { int    v = ij["http_port"]!.GetValue<int>();        CheckRestart($"{inst.Name}/http_port",      v != inst.HttpPort);      inst.HttpPort      = v; }
+                            if (ij.ContainsKey("telnet_enabled")) { bool   v = ij["telnet_enabled"]!.GetValue<bool>(); CheckRestart($"{inst.Name}/telnet_enabled", v != inst.TelnetEnabled); inst.TelnetEnabled = v; }
+                            if (ij.ContainsKey("telnet_port"))    { int    v = ij["telnet_port"]!.GetValue<int>();      CheckRestart($"{inst.Name}/telnet_port",    v != inst.TelnetPort);    inst.TelnetPort    = v; }
+                            if (ij.ContainsKey("com_port") || ij.ContainsKey("baud_rate"))
+                            {
+                                int cp = ij.ContainsKey("com_port")  ? ij["com_port"]!.GetValue<int>()  : inst.ComPort;
+                                int br = ij.ContainsKey("baud_rate") ? ij["baud_rate"]!.GetValue<int>() : inst.BaudRate;
+                                bool changed = cp != inst.ComPort || br != inst.BaudRate;
+                                inst.ComPort = cp; inst.BaudRate = br;
+                                if (changed)
+                                {
+                                    if (_allWrappers.TryGetValue(inst.Name, out var w)) w.SetDefaultCom(cp, br);
+                                    liveApplied.Add($"{inst.Name}/com_port");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            var newInst = new InstanceConfig
+                            {
+                                Name          = ij.ContainsKey("name")           ? ij["name"]!.GetValue<string>()         : $"inst{i+1}",
+                                HttpEnabled   = ij.ContainsKey("http_enabled")   ? ij["http_enabled"]!.GetValue<bool>()   : true,
+                                HttpPort      = ij.ContainsKey("http_port")      ? ij["http_port"]!.GetValue<int>()       : 8083 + i,
+                                TelnetEnabled = ij.ContainsKey("telnet_enabled") ? ij["telnet_enabled"]!.GetValue<bool>() : true,
+                                TelnetPort    = ij.ContainsKey("telnet_port")    ? ij["telnet_port"]!.GetValue<int>()     : 8023 + i,
+                                ComPort       = ij.ContainsKey("com_port")       ? ij["com_port"]!.GetValue<int>()        : i + 1,
+                                BaudRate      = ij.ContainsKey("baud_rate")      ? ij["baud_rate"]!.GetValue<int>()       : 9600,
+                            };
+                            _config.Instances.Add(newInst);
+                        }
+                    }
+                    while (_config.Instances.Count > arr.Count)
+                        _config.Instances.RemoveAt(_config.Instances.Count - 1);
+                }
+
+                WriteIniFile();
+
+                return new JsonObject
+                {
+                    ["ok"]              = true,
+                    ["result"]          = "Konfiguration gespeichert",
+                    ["live_applied"]    = liveApplied,
+                    ["restart_required"] = restartRequired,
+                }.ToJsonString();
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"ApplyAndWriteConfig error: {ex.Message}");
+                return new JsonObject { ["ok"] = false, ["error"] = ex.Message }.ToJsonString();
+            }
+        }
+
+        private void WriteIniFile()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("; EasyComServer configuration file");
+            sb.AppendLine($"; Saved by web configurator — {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
+            sb.AppendLine();
+            sb.AppendLine("[global]");
+            sb.AppendLine($"dll_path         = {_config.DllPath}");
+            sb.AppendLine($"log_file         = {_config.LogFile}");
+            sb.AppendLine($"log_max_size_mb  = {_config.LogMaxSizeMb}");
+            sb.AppendLine($"log_max_files    = {_config.LogMaxFiles}");
+            sb.AppendLine($"console_logging  = {(_config.ConsoleLogging ? "true" : "false")}");
+            sb.AppendLine($"com_idle_timeout = {_config.ComIdleTimeoutSeconds}");
+            sb.AppendLine();
+            sb.AppendLine("; HTTP Basic Auth (global — applies to all instances)");
+            sb.AppendLine($"basic_auth       = {(_config.BasicAuthEnabled ? "true" : "false")}");
+            sb.AppendLine($"auth_user        = {_config.BasicAuthUser}");
+            sb.AppendLine($"auth_pass        = {_config.BasicAuthPass}");
+            foreach (var inst in _config.Instances)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"[instance: {inst.Name}]");
+                sb.AppendLine($"name             = {inst.Name}");
+                sb.AppendLine($"http_enabled     = {(inst.HttpEnabled   ? "true" : "false")}");
+                sb.AppendLine($"http_port        = {inst.HttpPort}");
+                sb.AppendLine($"telnet_enabled   = {(inst.TelnetEnabled ? "true" : "false")}");
+                sb.AppendLine($"telnet_port      = {inst.TelnetPort}");
+                sb.AppendLine($"com_port         = {inst.ComPort}");
+                sb.AppendLine($"baud_rate        = {inst.BaudRate}");
+            }
+            File.WriteAllText(_iniPath, sb.ToString(), Encoding.UTF8);
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
