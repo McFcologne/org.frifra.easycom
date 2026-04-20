@@ -4,6 +4,7 @@ using System.Drawing;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
@@ -262,7 +263,7 @@ namespace EasyComConfigurator
             Section(tbl, "HTTP Basic Auth");
             _gBasicAuth = Chk(tbl, "Aktiviert:");
             _gAuthUser  = Field(tbl, "Benutzer:");
-            _gAuthPass  = Field(tbl, "Passwort / Hash:");
+            _gAuthPass  = PasswordField(tbl, "Passwort / Hash:");
             scroll.Controls.Add(tbl);
             return scroll;
         }
@@ -330,6 +331,48 @@ namespace EasyComConfigurator
                 e.Graphics.DrawPath(pen, path);
             };
             return w;
+        }
+
+        private static TextBox PasswordField(TableLayoutPanel t, string lbl)
+        {
+            var tb = new TextBox { UseSystemPasswordChar = true, BorderStyle = BorderStyle.None };
+
+            var btnEye  = Btn("👁",      Point.Empty, 26); btnEye.Height  = 22; btnEye.TabStop  = false;
+            var btnHash = Btn("SHA-256", Point.Empty, 64); btnHash.Height = 22; btnHash.TabStop = false;
+
+            btnEye.Click += (_, __) =>
+            {
+                tb.UseSystemPasswordChar = !tb.UseSystemPasswordChar;
+                btnEye.Text = tb.UseSystemPasswordChar ? "👁" : "🙈";
+            };
+            btnHash.Click += (_, __) =>
+            {
+                string v = tb.Text.Trim();
+                if (v.Length > 0 && !v.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+                    tb.Text = "sha256:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(v))).ToLowerInvariant();
+            };
+
+            var wrap = new Panel { BackColor = Color.White, Margin = new Padding(0, 3, 4, 3), Height = 26, Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top };
+            wrap.Controls.AddRange(new Control[] { tb, btnEye, btnHash });
+            wrap.Paint += (_, e) =>
+            {
+                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                using var pen  = new Pen(Color.FromArgb(0xaa, 0xaa, 0xaa));
+                using var path = RoundedPath(new Rectangle(0, 0, wrap.Width - 1, wrap.Height - 1), 4);
+                e.Graphics.DrawPath(pen, path);
+            };
+            void Reflow()
+            {
+                int bh = Math.Max(1, wrap.Height - 4);
+                btnEye.Size  = new Size(26, bh); btnEye.Location  = new Point(wrap.Width - 28, 2);
+                btnHash.Size = new Size(64, bh); btnHash.Location = new Point(wrap.Width - 96, 2);
+                tb.Location  = new Point(2, 2);  tb.Size          = new Size(Math.Max(0, wrap.Width - 100), bh);
+            }
+            wrap.Resize  += (_, __) => Reflow();
+            wrap.Layout  += (_, __) => Reflow();
+
+            Row(t, lbl, wrap);
+            return tb;
         }
 
         private static System.Drawing.Drawing2D.GraphicsPath RoundedPath(Rectangle r, int cr)

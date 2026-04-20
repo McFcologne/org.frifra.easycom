@@ -164,6 +164,7 @@
 .cfg-row { display: flex; align-items: center; padding: 3px 12px; }
 .cfg-row label { width: 180px; min-width: 180px; font-size: 9pt; color: #333; }
 .cfg-row input[type=text],
+.cfg-row input[type=password],
 .cfg-row input[type=number],
 .cfg-row select {
   flex: 1;
@@ -176,11 +177,38 @@
   outline: none;
 }
 .cfg-row input[type=text]:focus,
+.cfg-row input[type=password]:focus,
 .cfg-row input[type=number]:focus,
 .cfg-row select:focus {
   border-color: #0078d7;
 }
 .cfg-row input[type=checkbox] { width: 15px; height: 15px; }
+
+/* Password field with toggle + hash buttons */
+.cfg-pass-wrap {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+}
+.cfg-pass-wrap input[type=password],
+.cfg-pass-wrap input[type=text] {
+  flex: 1;
+  min-width: 0;
+}
+.cfg-pass-btn {
+  font-size: 8pt;
+  height: 22px;
+  padding: 0 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  background: #f5f5f5;
+}
+.cfg-pass-btn:hover { background: #e8f0fe; border-color: #0078d7; }
 
 /* Bottom bar */
 .cfg-bottom {

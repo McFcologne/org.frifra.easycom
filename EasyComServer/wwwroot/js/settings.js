@@ -95,7 +95,7 @@
       sh("HTTP Basic Auth") +
       fc("basic_auth",      "Aktiviert:",                cfg.basic_auth) +
       ft("auth_user",       "Benutzer:",                 cfg.auth_user) +
-      ft("auth_pass",       "Passwort / Hash:",           cfg.auth_pass);
+      fp("auth_pass",       "Passwort / Hash:",           cfg.auth_pass);
   }
 
   function instanceFormHtml(inst) {
@@ -114,6 +114,14 @@
 
   function sh(t)        { return "<div class=\"cfg-sec\">" + esc(t) + "</div>"; }
   function ft(id, l, v) { return "<div class=\"cfg-row\"><label>" + l + "</label><input type=\"text\" id=\"" + id + "\" value=\"" + esc(v || "") + "\"></div>"; }
+  function fp(id, l, v) {
+    return "<div class=\"cfg-row\"><label>" + l + "</label>" +
+      "<div class=\"cfg-pass-wrap\">" +
+      "<input type=\"password\" id=\"" + id + "\" value=\"" + esc(v || "") + "\">" +
+      "<button type=\"button\" class=\"cfg-pass-btn\" onclick=\"cfgTogglePass('" + id + "',this)\" tabindex=\"-1\">👁</button>" +
+      "<button type=\"button\" class=\"cfg-pass-btn\" onclick=\"cfgHashPass('" + id + "')\" tabindex=\"-1\">SHA&#x2011;256</button>" +
+      "</div></div>";
+  }
   function fn(id, l, v, mn, mx) {
     return "<div class=\"cfg-row\"><label>" + l + "</label><input type=\"number\" id=\"" + id + "\" value=\"" + (+v || 0) + "\" min=\"" + mn + "\" max=\"" + mx + "\"></div>";
   }
@@ -219,6 +227,27 @@
       document.getElementById("cfg-svc-status").textContent = "nicht erreichbar";
     }
   }
+
+  // ── Password field helpers ─────────────────────────────────────────────────
+  window.cfgTogglePass = function (id, btn) {
+    var inp = document.getElementById(id);
+    if (!inp) return;
+    inp.type = inp.type === "password" ? "text" : "password";
+    btn.textContent = inp.type === "password" ? "👁" : "🙈";
+  };
+
+  window.cfgHashPass = async function (id) {
+    var inp = document.getElementById(id);
+    if (!inp) return;
+    var val = inp.value;
+    if (!val || val.toLowerCase().startsWith("sha256:")) return;
+    var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(val));
+    var hex = Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+    inp.value = "sha256:" + hex;
+    inp.type = "text";
+    var btn = inp.parentElement && inp.parentElement.querySelector(".cfg-pass-btn");
+    if (btn) btn.textContent = "🙈";
+  };
 
   // ── Utility ────────────────────────────────────────────────────────────────
   function esc(s) {
