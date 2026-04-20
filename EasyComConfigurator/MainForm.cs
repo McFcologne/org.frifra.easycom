@@ -203,7 +203,9 @@ namespace EasyComConfigurator
             btnRemove.Click += (_, __) => RemoveInstance();
             pnlBtns.Controls.AddRange(new Control[] { btnAdd, btnRemove });
 
-            split.Panel1.Controls.Add(_list);
+            var pnlListWrap = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 8, 12, 0) };
+            pnlListWrap.Controls.Add(_list);
+            split.Panel1.Controls.Add(pnlListWrap);
             split.Panel1.Controls.Add(pnlBtns);
 
             _globalPanel = BuildGlobalPanel();
