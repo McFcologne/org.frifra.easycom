@@ -85,8 +85,10 @@
   font: 9pt Consolas, monospace;
   padding: 1px 4px;
   border: 1px solid #aaa;
+  border-radius: 4px;
   background: #fff;
   color: #555;
+  outline: none;
 }
 
 /* Split */
@@ -105,6 +107,7 @@
   flex: 1;
   overflow-y: auto;
   list-style: none;
+  padding: 8px 12px 0;
 }
 .cfg-list li {
   padding: 5px 10px;
@@ -150,7 +153,14 @@
   font-size: 9pt;
   padding: 1px 4px;
   border: 1px solid #aaa;
+  border-radius: 4px;
   background: #fff;
+  outline: none;
+}
+.cfg-row input[type=text]:focus,
+.cfg-row input[type=number]:focus,
+.cfg-row select:focus {
+  border-color: #0078d7;
 }
 .cfg-row input[type=checkbox] { width: 15px; height: 15px; }
 

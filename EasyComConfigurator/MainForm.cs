@@ -68,6 +68,7 @@ namespace EasyComConfigurator
 
         // ── Controls ──────────────────────────────────────────────────────────
         private TextBox _pathBox     = null!;
+        private Button  _btnBrowse   = null!;
         private ListBox _list        = null!;
         private Panel   _globalPanel = null!;
         private Panel   _instPanel   = null!;
@@ -93,8 +94,9 @@ namespace EasyComConfigurator
         private NumericUpDown _iComPort    = null!;
         private ComboBox      _iBaud       = null!;
 
-        private bool _loading  = false;
+        private bool _loading   = false;
         private int  _activeIdx = 0;
+        private int  _listHover = -1;
 
         private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(3) };
 
@@ -115,6 +117,13 @@ namespace EasyComConfigurator
             {
                 string full = Path.GetFullPath(candidate);
                 if (File.Exists(full)) { TryLoad(full); break; }
+            }
+
+            if (!string.IsNullOrEmpty(_iniPath))
+            {
+                _pathBox.ReadOnly  = true;
+                _pathBox.BackColor = SystemColors.Control;
+                _btnBrowse.Enabled = false;
             }
 
             RefreshServiceStatus();
@@ -141,21 +150,30 @@ namespace EasyComConfigurator
             // Top: ini path
             var pnlTop = new Panel { Dock = DockStyle.Top, Height = 46 };
             var lblPath = new Label { Text = "Konfigurationsdatei:", AutoSize = true, Location = new Point(8, 15) };
-            var btnBrowse = new Button { Text = "…", Width = 32, Height = 23, Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            _pathBox = new TextBox { Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, Location = new Point(168, 12) };
-            btnBrowse.Click  += (_, __) => BrowseOpen();
+            _btnBrowse = new Button { Text = "…", Width = 32, Height = 23, Anchor = AnchorStyles.Top | AnchorStyles.Right };
+            _pathBox = new TextBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.None };
             _pathBox.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) TryLoad(_pathBox.Text.Trim()); };
-            pnlTop.Controls.AddRange(new Control[] { lblPath, _pathBox, btnBrowse });
+            var pathWrap = new Panel { Location = new Point(168, 10), Height = 26, BackColor = Color.White, Padding = new Padding(2) };
+            pathWrap.Controls.Add(_pathBox);
+            pathWrap.Paint += (_, e) =>
+            {
+                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                using var pen  = new Pen(Color.FromArgb(0xaa, 0xaa, 0xaa));
+                using var path = RoundedPath(new Rectangle(0, 0, pathWrap.Width - 1, pathWrap.Height - 1), 4);
+                e.Graphics.DrawPath(pen, path);
+            };
+            _btnBrowse.Click += (_, __) => BrowseOpen();
+            pnlTop.Controls.AddRange(new Control[] { lblPath, pathWrap, _btnBrowse });
             pnlTop.Resize += (_, __) =>
             {
-                _pathBox.Width = pnlTop.Width - 168 - 44;
-                btnBrowse.Left = pnlTop.Width - 40;
-                btnBrowse.Top  = 11;
+                pathWrap.Width  = pnlTop.Width - 168 - 44;
+                _btnBrowse.Left = pnlTop.Width - 40;
+                _btnBrowse.Top  = 11;
             };
 
             // Bottom: service + save
             var pnlBottom = new Panel { Dock = DockStyle.Bottom, Height = 88 };
-            var grpSvc = new GroupBox { Text = "Windows-Dienst", Location = new Point(8, 6), Size = new Size(500, 52) };
+            var grpSvc = new GroupBox { Text = "Server", Location = new Point(8, 6), Size = new Size(500, 52) };
             _lblSvcStatus = new Label { Text = "…", AutoSize = true, Location = new Point(8, 22) };
             var btnStart   = Btn("▶ Start",    new Point(130, 18), 80);
             var btnStop    = Btn("■ Stop",     new Point(214, 18), 80);
@@ -185,7 +203,9 @@ namespace EasyComConfigurator
             };
 
             // Center: split list / editor
-            var split = new SplitContainer { Dock = DockStyle.Fill };
+            var split = new SplitContainer { Dock = DockStyle.Fill, SplitterWidth = 1, BackColor = Color.FromArgb(0xcc, 0xcc, 0xcc) };
+            split.Panel1.BackColor = Color.White;
+            split.Panel2.BackColor = Color.FromArgb(0xf8, 0xf8, 0xf8);
             Load += (_, __) =>
             {
                 split.Panel1MinSize    = 160;
@@ -193,17 +213,20 @@ namespace EasyComConfigurator
                 split.SplitterDistance = 210;
             };
 
-            _list = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false, Font = new Font("Segoe UI", 9.5f) };
+            _list = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false, Font = new Font("Segoe UI", 9.5f), BorderStyle = BorderStyle.None, DrawMode = DrawMode.OwnerDrawFixed, ItemHeight = 27 };
             _list.SelectedIndexChanged += ListSelectionChanged;
+            _list.DrawItem  += ListDrawItem;
+            _list.MouseMove += (_, e) => { int i = _list.IndexFromPoint(e.Location); if (i != _listHover) { _listHover = i; _list.Invalidate(); } };
+            _list.MouseLeave += (_, __) => { if (_listHover >= 0) { _listHover = -1; _list.Invalidate(); } };
 
-            var pnlBtns  = new Panel { Dock = DockStyle.Bottom, Height = 34 };
+            var pnlBtns  = new Panel { Dock = DockStyle.Bottom, Height = 34, BackColor = Color.White };
             var btnAdd    = Btn("+ Hinzufügen", new Point(4,   5), 108);
             var btnRemove = Btn("− Entfernen",  new Point(116, 5), 88);
             btnAdd.Click    += (_, __) => AddInstance();
             btnRemove.Click += (_, __) => RemoveInstance();
             pnlBtns.Controls.AddRange(new Control[] { btnAdd, btnRemove });
 
-            var pnlListWrap = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 8, 12, 0) };
+            var pnlListWrap = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 8, 12, 0), BackColor = Color.White };
             pnlListWrap.Controls.Add(_list);
             split.Panel1.Controls.Add(pnlListWrap);
             split.Panel1.Controls.Add(pnlBtns);
@@ -227,7 +250,7 @@ namespace EasyComConfigurator
 
         private Panel BuildGlobalPanel()
         {
-            var scroll = new Panel { AutoScroll = true };
+            var scroll = new Panel { AutoScroll = true, BackColor = Color.FromArgb(0xf8, 0xf8, 0xf8) };
             var tbl = MakeTbl();
             Section(tbl, "Global");
             _gDllPath    = Field(tbl, "DLL-Pfad:");
@@ -246,7 +269,7 @@ namespace EasyComConfigurator
 
         private Panel BuildInstancePanel()
         {
-            var scroll = new Panel { AutoScroll = true };
+            var scroll = new Panel { AutoScroll = true, BackColor = Color.FromArgb(0xf8, 0xf8, 0xf8) };
             var tbl = MakeTbl();
             Section(tbl, "Instanz");
             _iName = Field(tbl, "Name:");
@@ -258,10 +281,10 @@ namespace EasyComConfigurator
             _iTelnetPort = Num(tbl, "Port:", 1, 65535);
             Section(tbl, "COM-Port");
             _iComPort = Num(tbl, "COM-Port (0 = auto):", 0, 256);
-            _iBaud    = new ComboBox { Dock = DockStyle.Fill, Margin = new Padding(0, 3, 4, 3), DropDownStyle = ComboBoxStyle.DropDown };
+            _iBaud = new ComboBox { DropDownStyle = ComboBoxStyle.DropDown, FlatStyle = FlatStyle.Flat };
             foreach (var b in new[] { "1200","2400","4800","9600","19200","38400","57600","115200" })
                 _iBaud.Items.Add(b);
-            Row(tbl, "Baudrate:", _iBaud);
+            Row(tbl, "Baudrate:", WrapRounded(_iBaud, new Padding(0, 3, 4, 3)));
             scroll.Controls.Add(tbl);
             return scroll;
         }
@@ -270,7 +293,7 @@ namespace EasyComConfigurator
 
         private static TableLayoutPanel MakeTbl()
         {
-            var t = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Dock = DockStyle.Top, Padding = new Padding(12, 8, 12, 8) };
+            var t = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Dock = DockStyle.Top, Padding = new Padding(12, 8, 12, 8), BackColor = Color.FromArgb(0xf8, 0xf8, 0xf8) };
             t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
             t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             return t;
@@ -280,15 +303,46 @@ namespace EasyComConfigurator
             var l = new Label { Text = title, Font = new Font("Segoe UI", 9f, FontStyle.Bold), AutoSize = true, Padding = new Padding(0, 10, 0, 2) };
             t.Controls.Add(l); t.SetColumnSpan(l, 2);
         }
-        private static TextBox Field(TableLayoutPanel t, string lbl) { var c = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(0,3,4,3) }; Row(t,lbl,c); return c; }
-        private static NumericUpDown Num(TableLayoutPanel t, string lbl, int min, int max) { var c = new NumericUpDown { Minimum=min, Maximum=max, Dock=DockStyle.Fill, Margin=new Padding(0,3,4,3) }; Row(t,lbl,c); return c; }
-        private static CheckBox Chk(TableLayoutPanel t, string lbl) { var c = new CheckBox { AutoSize=true, Margin=new Padding(0,3,4,3) }; Row(t,lbl,c); return c; }
+        private static TextBox Field(TableLayoutPanel t, string lbl) { var c = new TextBox(); Row(t, lbl, WrapRounded(c, new Padding(0, 3, 4, 3))); return c; }
+        private static NumericUpDown Num(TableLayoutPanel t, string lbl, int min, int max) { var c = new NumericUpDown { Minimum = min, Maximum = max }; Row(t, lbl, WrapRounded(c, new Padding(0, 3, 4, 3))); return c; }
+        private static CheckBox Chk(TableLayoutPanel t, string lbl) { var c = new CheckBox { AutoSize = true, Margin = new Padding(0, 3, 4, 3) }; Row(t, lbl, c); return c; }
         private static void Row(TableLayoutPanel t, string lbl, Control c)
         {
-            t.Controls.Add(new Label { Text=lbl, AutoSize=true, Anchor=AnchorStyles.Left|AnchorStyles.Top, Padding=new Padding(0,5,6,0) });
+            t.Controls.Add(new Label { Text = lbl, AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top, Padding = new Padding(0, 7, 6, 0) });
             t.Controls.Add(c);
         }
-        private static Button Btn(string text, Point loc, int w) => new() { Text=text, Location=loc, Width=w, Height=24 };
+        private static Button Btn(string text, Point loc, int w) => new() { Text = text, Location = loc, Width = w, Height = 24 };
+
+        private static Panel WrapRounded(Control inner, Padding margin)
+        {
+            if (inner is TextBox tb)              tb.BorderStyle = BorderStyle.None;
+            else if (inner is UpDownBase ub)      ub.BorderStyle = BorderStyle.None;
+            else if (inner is ComboBox cb)        cb.FlatStyle   = FlatStyle.Flat;
+            inner.Dock   = DockStyle.Fill;
+            inner.Margin = Padding.Empty;
+            var w = new Panel { BackColor = Color.White, Margin = margin, Padding = new Padding(2), Height = 26, Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top };
+            w.Controls.Add(inner);
+            w.Paint += (_, e) =>
+            {
+                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                using var pen  = new Pen(Color.FromArgb(0xaa, 0xaa, 0xaa));
+                using var path = RoundedPath(new Rectangle(0, 0, w.Width - 1, w.Height - 1), 4);
+                e.Graphics.DrawPath(pen, path);
+            };
+            return w;
+        }
+
+        private static System.Drawing.Drawing2D.GraphicsPath RoundedPath(Rectangle r, int cr)
+        {
+            var p = new System.Drawing.Drawing2D.GraphicsPath();
+            int d = cr * 2;
+            p.AddArc(r.Left,      r.Top,        d, d, 180, 90);
+            p.AddArc(r.Right - d, r.Top,        d, d, 270, 90);
+            p.AddArc(r.Right - d, r.Bottom - d, d, d, 0,   90);
+            p.AddArc(r.Left,      r.Bottom - d, d, d, 90,  90);
+            p.CloseFigure();
+            return p;
+        }
 
         // ── List selection ────────────────────────────────────────────────────
 
@@ -298,6 +352,27 @@ namespace EasyComConfigurator
             CommitCurrent();
             _activeIdx = _list.SelectedIndex;
             LoadSelected();
+        }
+
+        private void ListDrawItem(object? sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0) return;
+            bool sel = (e.State & DrawItemState.Selected) != 0;
+            bool hov = e.Index == _listHover && !sel;
+            Color bg = sel ? Color.FromArgb(0x00, 0x78, 0xd7)
+                     : hov ? Color.FromArgb(0xe8, 0xf0, 0xfe)
+                     : Color.White;
+            using (var brush = new SolidBrush(bg))
+                e.Graphics.FillRectangle(brush, e.Bounds);
+            if (!sel)
+            {
+                using var sep = new Pen(Color.FromArgb(0xf0, 0xf0, 0xf0));
+                e.Graphics.DrawLine(sep, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right - 1, e.Bounds.Bottom - 1);
+            }
+            using var fb = new SolidBrush(sel ? Color.White : Color.Black);
+            var r = e.Bounds; r.X += 10; r.Width -= 10;
+            using var sf = new StringFormat { LineAlignment = StringAlignment.Center };
+            e.Graphics.DrawString(_list.Items[e.Index]?.ToString() ?? "", _list.Font, fb, r, sf);
         }
 
         // ── Model ↔ Form ──────────────────────────────────────────────────────
