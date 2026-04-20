@@ -20,6 +20,8 @@ Source: "..\bin\Release\publish\*"; DestDir: "{app}"; Flags: recursesubdirs; Exc
 ; easycom.ini: only written if not already present; never removed by the uninstaller
 ; (we handle deletion ourselves in CurUninstallStepChanged after asking the user)
 Source: "..\bin\Release\publish\easycom.ini"; DestDir: "{app}"; Flags: uninsneveruninstall onlyifdoesntexist
+; EasyComConfigurator — GUI tool for editing easycom.ini while the service runs
+Source: "..\..\EasyComConfigurator\bin\Release\publish\*"; DestDir: "{app}"; Flags: recursesubdirs; Excludes: "easycom.ini"
 
 [Run]
 Filename: "sc"; Parameters: "create EasyComServer binPath=""{app}\EasyComServer.exe"" start=auto obj=""LocalSystem"" DisplayName=""Moeller EASY COM Server"""; Flags: runhidden
@@ -32,6 +34,7 @@ Filename: "cmd"; Parameters: "/c timeout /t 3 /nobreak"; Flags: runhidden; RunOn
 Filename: "sc"; Parameters: "delete EasyComServer"; Flags: runhidden; RunOnceId: "DeleteService"
 
 [Icons]
+Name: "{group}\EasyComServer Konfigurator"; Filename: "{app}\EasyComConfigurator.exe"; WorkingDir: "{app}"
 Name: "{group}\Uninstall"; Filename: "{uninstallexe}"
 
 [Languages]

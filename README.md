@@ -212,6 +212,7 @@ EasyComServer\
 | 2.1.0 | 2026-04-08 | Added RESTful API (`/api/v1`), OpenAPI 3.0 specification (`openapi.yaml`), interactive Swagger UI test page (`/swagger.html`) |
 | 2.1.1 | 2026-04-09 | SHA-256 password hashing for Basic Auth; MIT License added |
 | 2.2.0 | 2026-04-19 | Installer downloads EASY_COM.dll automatically from Eaton (latest version probe, versioned subfolder, readme offer, manual fallback via file picker); `NativeLibrary.SetDllImportResolver` makes configured `dll_path` effective for all P/Invoke calls; DLL excluded from installer package |
+| 2.3.0 | 2026-04-20 | New WinForms configurator (EasyComConfigurator); web settings modal (860×620, `GET`/`POST /api/v1/config`); installer includes configurator with Start Menu shortcut; solution platform config fixed (AnyCPU) |
 
 See [RELEASENOTES.md](RELEASENOTES.md) for full details.
 

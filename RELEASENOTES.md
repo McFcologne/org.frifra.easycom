@@ -2,6 +2,32 @@
 
 ---
 
+## 2.3.0 — 2026-04-20
+
+### EasyComConfigurator (neu)
+
+- **Windows-GUI-Konfigurator:** Neue WinForms-Anwendung `EasyComConfigurator.exe` zur Bearbeitung von `easycom.ini` ohne Texteditor. Links Instanz-Liste, rechts Formular für globale Einstellungen und Instanz-Parameter (HTTP, Telnet, COM-Port, Baudrate, Auth).
+- **Icon:** Verwendet dasselbe `easycom.ico` wie der Server-Dienst.
+- **SplitterDistance-Fix:** `Panel1MinSize`, `Panel2MinSize` und `SplitterDistance` werden erst im `Load`-Event gesetzt, um `InvalidOperationException` beim Start zu vermeiden.
+- **Einheitliche Abstände:** Liste links hat denselben Innen­abstand wie die Formularfelder rechts (12 px).
+
+### Web-Konfigurator (wwwroot)
+
+- **Settings-Modal:** Über den Knopf „⚙ SETTINGS" in der Navigationsleiste öffnet sich ein 860 × 620 px großes Modal-Fenster, das das Layout des nativen Windows-Konfigurators nachbildet (Segoe-UI-Stil, grauer Hintergrund, blaue Titelleiste).
+- **REST-Endpunkt `GET /api/v1/config`:** Liefert die komplette laufende Konfiguration als JSON.
+- **REST-Endpunkt `POST /api/v1/config`:** Schreibt Änderungen in `easycom.ini` und wendet live-fähige Einstellungen sofort an (`console_logging`, `com_idle_timeout`, Basic-Auth-Felder, COM-Port/Baudrate je Instanz). Die Antwort unterscheidet zwischen sofort wirksamen Änderungen (`live_applied`) und solchen, die einen Neustart erfordern (`restart_required`).
+
+### Installer (setup.iss)
+
+- **EasyComConfigurator integriert:** Das Setup installiert jetzt auch `EasyComConfigurator.exe` (samt Abhängigkeiten) aus dem Release-Publish-Verzeichnis.
+- **Start-Menü-Eintrag:** Neuer Verknüpfung „EasyComServer Konfigurator" im Start-Menü; `WorkingDir` ist auf `{app}` gesetzt, damit die Anwendung `easycom.ini` im Programmverzeichnis findet.
+
+### Build-Konfiguration
+
+- **Solution-Plattform korrigiert:** `EasyComServer.sln` verwendete ungültige Konfigurationseinträge (`x86` statt `AnyCPU` auf Solution-Ebene). Alle `SolutionConfigurationPlatforms`- und `ProjectConfigurationPlatforms`-Einträge auf `Any CPU` / `AnyCPU` vereinheitlicht.
+
+---
+
 ## 2.2.0 — 2026-04-19
 
 Ab dieser Version steht ein fertiges Windows-Setup (`EasyComServer_Setup.exe`) als Download auf GitHub zur Verfügung:  
