@@ -139,8 +139,12 @@
 <div id="cfg-overlay" class="cfg-overlay">
   <div class="cfg-dlg">
     <div class="cfg-titlebar">
-      EasyComServer Konfigurator
-      <button class="cfg-close" onclick="closeSettings()">&#x2715;</button>
+      <span class="cfg-title-text">EasyComServer Konfigurator</span>
+      <div class="cfg-winctrls">
+        <button class="cfg-winbtn cfg-dim" tabindex="-1">&#x2212;</button>
+        <button class="cfg-winbtn cfg-dim" tabindex="-1">&#x25A1;</button>
+        <button class="cfg-winbtn cfg-close-btn" onclick="closeSettings()" title="Schlie&#xDF;en">&#x2715;</button>
+      </div>
     </div>
     <div class="cfg-top">
       <label>Konfigurationsdatei:</label>

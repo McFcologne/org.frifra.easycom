@@ -37,35 +37,53 @@
   display: flex;
   flex-direction: column;
   background: #f0f0f0;
-  border: 1px solid #888;
-  box-shadow: 0 12px 48px rgba(0,0,0,.7);
+  border: 1px solid #666;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.3);
   font-family: 'Segoe UI', Arial, sans-serif;
   font-size: 9pt;
   color: #000;
 }
 
-/* Title bar */
+/* Title bar — Windows 11 style */
 .cfg-titlebar {
-  background: #1a3a5c;
+  background: linear-gradient(180deg, #1f4068 0%, #1a3a5c 100%);
   color: #fff;
-  padding: 5px 10px;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.cfg-title-text {
+  flex: 1;
+  padding: 0 10px;
   font-size: 9pt;
   font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cfg-winctrls {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
+  align-self: stretch;
 }
-.cfg-close {
-  background: none;
+.cfg-winbtn {
+  width: 46px;
   border: none;
+  background: none;
   color: #fff;
-  font-size: 12pt;
+  font-size: 11px;
   cursor: pointer;
-  line-height: 1;
-  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .1s;
 }
-.cfg-close:hover { background: #c42b1c; }
+.cfg-winbtn:hover           { background: rgba(255,255,255,.15); }
+.cfg-winbtn.cfg-close-btn:hover { background: #e81123; }
+.cfg-winbtn.cfg-dim         { opacity: .35; cursor: default; pointer-events: none; }
 
 /* Top bar (INI path) */
 .cfg-top {
