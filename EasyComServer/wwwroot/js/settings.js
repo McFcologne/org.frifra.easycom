@@ -119,7 +119,6 @@
       "<div class=\"cfg-pass-wrap\">" +
       "<input type=\"password\" id=\"" + id + "\" value=\"" + esc(v || "") + "\">" +
       "<button type=\"button\" class=\"cfg-pass-btn\" onclick=\"cfgTogglePass('" + id + "',this)\" tabindex=\"-1\">👁</button>" +
-      "<button type=\"button\" class=\"cfg-pass-btn\" onclick=\"cfgHashPass('" + id + "')\" tabindex=\"-1\">SHA&#x2011;256</button>" +
       "</div></div>";
   }
   function fn(id, l, v, mn, mx) {
@@ -236,20 +235,7 @@
     btn.textContent = inp.type === "password" ? "👁" : "🙈";
   };
 
-  window.cfgHashPass = async function (id) {
-    var inp = document.getElementById(id);
-    if (!inp) return;
-    var val = inp.value;
-    if (!val || val.toLowerCase().startsWith("sha256:")) return;
-    var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(val));
-    var hex = Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
-    inp.value = "sha256:" + hex;
-    inp.type = "text";
-    var btn = inp.parentElement && inp.parentElement.querySelector(".cfg-pass-btn");
-    if (btn) btn.textContent = "🙈";
-  };
-
-  // ── Utility ────────────────────────────────────────────────────────────────
+// ── Utility ────────────────────────────────────────────────────────────────
   function esc(s) {
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
