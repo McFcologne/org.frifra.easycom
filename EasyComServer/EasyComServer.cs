@@ -153,6 +153,7 @@ namespace EasyComServer
                     "Authorization, Content-Type");
                 ctx.Response.AddHeader("Access-Control-Allow-Methods",
                     "GET, POST, OPTIONS");
+                ctx.Response.Headers["Server"] = "Moeller EASY(r) Server (EasyComServer .NET)";
 
                 // ── Always allow OPTIONS preflight without authentication ─────
                 if (ctx.Request.HttpMethod == "OPTIONS")

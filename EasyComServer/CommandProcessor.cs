@@ -403,10 +403,13 @@ namespace EasyComServer
             string val = kv[(idx + 1)..].Trim();
             return key switch
             {
-                "console_logging" => SetConsoleLogging(val),
+                "console_logging"  => SetConsoleLogging(val),
                 "com_idle_timeout" => SetComIdleTimeout(val),
-                "com_port" => SetDefaultCom(val, null),
-                "baud_rate" => SetDefaultCom(null, val),
+                "com_port"         => SetDefaultCom(val, null),
+                "baud_rate"        => SetDefaultCom(null, val),
+                "basic_auth"       => SetBasicAuth(val),
+                "auth_user"        => SetAuthUser(val),
+                "auth_pass"        => SetAuthPass(val),
                 _ => $"ERROR Unknown configuration variable: {key}"
             };
         }
@@ -428,6 +431,31 @@ namespace EasyComServer
             _config.ComIdleTimeoutSeconds = sec;
             _wrapper.SetComIdleTimeout(sec);
             return $"OK com_idle_timeout={sec}";
+        }
+
+        private string SetBasicAuth(string val)
+        {
+            bool on = val.Equals("true",    StringComparison.OrdinalIgnoreCase)
+                   || val.Equals("yes",     StringComparison.OrdinalIgnoreCase)
+                   || val.Equals("enabled", StringComparison.OrdinalIgnoreCase)
+                   || val == "1";
+            _config.BasicAuthEnabled = on;
+            Logger.Log($"SET basic_auth={on}");
+            return $"OK basic_auth={on}";
+        }
+
+        private string SetAuthUser(string val)
+        {
+            _config.BasicAuthUser = val;
+            Logger.Log($"SET auth_user={val}");
+            return $"OK auth_user={val}";
+        }
+
+        private string SetAuthPass(string val)
+        {
+            _config.BasicAuthPass = val;
+            Logger.Log("SET auth_pass=***");
+            return "OK auth_pass=***";
         }
 
         private string SetDefaultCom(string? port, string? baud)
