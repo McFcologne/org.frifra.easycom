@@ -188,7 +188,7 @@ var
   I: Integer;
 begin
   Result := False;
-  Key := 'SOFTWARE\dotnet\Setup\InstalledVersions\x86\sharedfx\Microsoft.NETCore.App';
+  Key := 'SOFTWARE\dotnet\Setup\InstalledVersions\x86\sharedfx\Microsoft.WindowsDesktop.App';
   if RegGetValueNames(HKLM, Key, Names) then
     for I := 0 to GetArrayLength(Names) - 1 do
       if Pos('8.', Names[I]) = 1 then
@@ -204,7 +204,7 @@ var
   ResultCode: Integer;
 begin
   Result := False;
-  Url      := 'https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.25/dotnet-runtime-8.0.25-win-x86.exe';
+  Url      := 'https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.25/windowsdesktop-runtime-8.0.25-win-x86.exe';
   TempFile := ExpandConstant('{app}\dotnet8.exe');
 
   ForceDirectories(ExpandConstant('{app}'));
@@ -226,8 +226,8 @@ begin
   if not FileExists(TempFile) then
   begin
     MsgBox('Download failed.' + #13#10 +
-           'Please install .NET 8 Runtime (x86) manually:' + #13#10 +
-           'https://aka.ms/dotnet/8.0/dotnet-runtime-win-x86.exe',
+           'Please install .NET 8 Windows Desktop Runtime (x86) manually:' + #13#10 +
+           'https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-x86.exe',
            mbError, MB_OK);
     Exit;
   end;
