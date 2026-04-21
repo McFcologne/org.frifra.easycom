@@ -9,6 +9,7 @@
     <ApplicationIcon>..\EasyComServer\easycom.ico</ApplicationIcon>
     <Version>2.3.0</Version>
     <Copyright>2009-2026 by Michael Fritzsche</Copyright>
+    <Platforms>AnyCPU;x64;x86</Platforms>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.0" />
