@@ -1,4 +1,4 @@
-#define AppVersion GetFileVersion("..\bin\Release\publish\EasyComServer.exe")
+#define AppVersion GetVersionNumbersString("..\EasyComServer\bin\Release\publish\EasyComServer.exe")
 
 [Setup]
 AppName=EasyComServer
@@ -10,18 +10,18 @@ OutputDir=.
 OutputBaseFilename=EasyComServer_Setup_{#AppVersion}
 Compression=lzma
 SolidCompression=yes
-SetupIconFile=..\easycom.ico
+SetupIconFile=..\EasyComServer\easycom.ico
 PrivilegesRequired=admin
 
 [Files]
 ; EASY_COM.dll is excluded from the package — redistribution is not permitted.
 ; The installer downloads it at runtime from the Eaton server.
-Source: "..\bin\Release\publish\*"; DestDir: "{app}"; Flags: recursesubdirs; Excludes: "EASY_COM.dll,easycom.ini"
+Source: "..\EasyComServer\bin\Release\publish\*"; DestDir: "{app}"; Flags: recursesubdirs; Excludes: "EASY_COM.dll,easycom.ini"
 ; easycom.ini: only written if not already present; never removed by the uninstaller
 ; (we handle deletion ourselves in CurUninstallStepChanged after asking the user)
-Source: "..\bin\Release\publish\easycom.ini"; DestDir: "{app}"; Flags: uninsneveruninstall onlyifdoesntexist
+Source: "..\EasyComServer\bin\Release\publish\easycom.ini"; DestDir: "{app}"; Flags: uninsneveruninstall onlyifdoesntexist
 ; EasyComConfigurator — GUI tool for editing easycom.ini while the service runs
-Source: "..\..\EasyComConfigurator\bin\Release\publish\*"; DestDir: "{app}"; Flags: recursesubdirs; Excludes: "easycom.ini"
+Source: "..\EasyComConfigurator\bin\Release\publish\*"; DestDir: "{app}"; Flags: recursesubdirs; Excludes: "easycom.ini"
 
 [Run]
 Filename: "sc"; Parameters: "create EasyComServer binPath=""{app}\EasyComServer.exe"" start=auto obj=""LocalSystem"" DisplayName=""Moeller EASY COM Server"""; Flags: runhidden
@@ -335,7 +335,7 @@ begin
     '$dll = Get-ChildItem -Path $Dir -Filter ' + #39 + 'EASY_COM.dll' + #39 + ' -Recurse | Select-Object -First 1' + #13#10 +
     'if ($dll) {' + #13#10 +
     '        $rel = $dll.FullName.Substring($AppDir.TrimEnd(' + #39 + '\' + #39 + ').Length)' +
-                   '.TrimStart(' + #39 + '\' + #39 + ') -replace ' + #39 + '\\' + #39 + ', ' + #39 + '/' + #39 + #13#10 +
+               '.TrimStart(' + #39 + '\' + #39 + ') -replace ' + #39 + '\\' + #39 + ', ' + #39 + '/' + #39 + #13#10 +
     '    [IO.File]::WriteAllLines($Out, @($dll.FullName, $rel, $Dir))' + #13#10 +
     '} else {' + #13#10 +
     '    Set-Content $Out ' + #39 + 'ERROR:NOT_FOUND' + #39 + ' -Encoding ASCII' + #13#10 +
